@@ -1,5 +1,4 @@
-export type TimestampMs = number;
-
+export type TimestampMs = number; 
 export type ArchitecturalThemeId = string;
 
 export interface UserProfileAndEntitlements {
@@ -20,6 +19,24 @@ export interface PomodoroPreset {
   cyclesBeforeLongBreak: number;
 }
 
+export interface TownHall {
+  level: 1 | 2 | 3 | 4 | 5;
+  qualityOfLifeXP: number;
+}
+
+export interface CentralLibrary {
+  level: 1 | 2 | 3 | 4 | 5;
+  totalPagesRead: number;
+}
+
+export interface CentralAqueduct {
+  level: 1 | 2 | 3 | 4 | 5;
+  totalHistoricalLiters: number;
+  dailyLiters: number;
+  dailyTargetLiters: number;
+  lastOperationalDay: string;
+}
+
 export interface GameState {
   cityStatus: 'ACTIVE' | 'MANUAL_PAUSE' | 'AUTO_PAUSED_HIBERNATION';
   lastTickAt: TimestampMs;
@@ -28,5 +45,10 @@ export interface GameState {
   config: {
     dayCycle: DayCycleConfig;
     pomodoroPresets: PomodoroPreset[];
+  };
+  globals: {
+    townHall: TownHall;
+    library: CentralLibrary;
+    aqueduct: CentralAqueduct;
   };
 }
