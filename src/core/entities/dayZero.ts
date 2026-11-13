@@ -35,5 +35,25 @@ export function createDayZeroState(now: TimestampMs): GameState {
         lastOperationalDay: getOperationalDay(now, DAY_ZERO_DAY_CYCLE),
       },
     },
+    neighborhoods: {
+      'tutorial-neighborhood-id': {
+        name: 'Barrio Tutorial',
+        isTutorial: true,
+        infrastructureLevel: 1,
+        treasuryCoins: 500,
+        urbanizationProgress: 50,
+        blocks: [
+          {
+            gridPosition: { x: 0, y: 0 },
+            isLeveled: false,
+            houses: [
+              { lotIndex: 0, designVariant: 1 },
+              { lotIndex: 1, designVariant: 2 },
+              { lotIndex: 2, designVariant: 3 },
+            ],
+          },
+        ],
+      },
+    },
   };
 }

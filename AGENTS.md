@@ -61,3 +61,12 @@ npm run dev           # Levantar servidor de desarrollo Vite
 ## 5. Estilo de Respuesta
 * Sé conciso, técnico y directo.
 * Al final de cada intervención, indicá claramente en qué estado del ciclo estamos: `[ESTADO: RED - Esperando OK para implementar]`, `[ESTADO: GREEN - Listo para Refactor o siguiente CA]` o `[ESTADO: SLICE UI]`.
+
+## 6. Tablero Collattice (coordinación humano-agente)
+
+El tablero vive fuera del repo y se opera por MCP. La conexión ya está registrada en `opencode.jsonc` (servidor `collattice` → `http://localhost:8080/mcp`, `oauth: false`).
+
+* **Credencial:** la agent key está en `.collattice.local` (ignorada por git). Se pasa como argumento `authKey` en **cada** tool call — nunca en un header de conexión ni en la config del MCP.
+* **Flujo:** antes de crear tarjetas, consultá `get_boards`, `get_lanes` y `get_cards` para no duplicar trabajo. Referenciá tarjetas por `#número` + board.
+* **Sincronización:** `BACKLOG.md` sigue siendo la única fuente de verdad de los CAs y del código. El tablero refleja el estado de trabajo (mover la tarjeta a `In Progress` al arrancar una US, a `Done` al cerrarla), no lo reemplaza.
+* **Fallback:** si el MCP no responde, usá la API REST: base `http://localhost:8080/api/v1`, header `X-User-Key: <agent key>`. Ver `README.md` § Collattice.

@@ -1,4 +1,6 @@
-export type TimestampMs = number; 
+export type TimestampMs = number;
+
+export type EntityId = string;
 export type ArchitecturalThemeId = string;
 
 export interface UserProfileAndEntitlements {
@@ -37,6 +39,26 @@ export interface CentralAqueduct {
   lastOperationalDay: string;
 }
 
+export interface House {
+  lotIndex: 0 | 1 | 2 | 3 | 4 | 5;
+  designVariant: 1 | 2 | 3;
+}
+
+export interface CityBlock {
+  gridPosition: { x: number; y: number };
+  houses: House[];
+  isLeveled: boolean;
+}
+
+export interface Neighborhood {
+  name: string;
+  isTutorial?: boolean;
+  infrastructureLevel: 1 | 2 | 3 | 4;
+  treasuryCoins: number;
+  urbanizationProgress: number;
+  blocks: CityBlock[];
+}
+
 export interface GameState {
   cityStatus: 'ACTIVE' | 'MANUAL_PAUSE' | 'AUTO_PAUSED_HIBERNATION';
   lastTickAt: TimestampMs;
@@ -51,4 +73,5 @@ export interface GameState {
     library: CentralLibrary;
     aqueduct: CentralAqueduct;
   };
+  neighborhoods: Record<EntityId, Neighborhood>;
 }
