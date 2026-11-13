@@ -1,5 +1,5 @@
 
-### 1. US-00 (sistema): Día Cero y Ciclo de Vida del Barrio Tutorial:
+### 1. US-00 (sistema): Día Cero y Ciclo de Vida del Barrio Tutorial `[IN PROGRESS]`:
 Como sistema, necesito inicializar una ciudad base con un barrio tutorial al abrir la aplicación por primera vez y eliminarlo cuando se cree el primer barrio real, para guiar el aprendizaje inicial sin ensuciar el progreso definitivo.   
 
 #### Criterios de Aceptación:
