@@ -55,5 +55,31 @@ export function createDayZeroState(now: TimestampMs): GameState {
         ],
       },
     },
+    habits: {
+      'tutorial-habit-id': {
+        neighborhoodId: 'tutorial-neighborhood-id',
+        title: 'Hábito Tutorial',
+        frequency: { type: 'DAILY' },
+        currentStreakDays: 0,
+        checkpointLevel: 1,
+        lastCompletedAt: null,
+        createdAt: now,
+        status: 'ACTIVE',
+      },
+    },
+    tasks: {
+      'tutorial-complex-task-id': {
+        neighborhoodId: 'tutorial-neighborhood-id',
+        title: 'Tarea Tutorial Compleja',
+        weight: 'COMPLEX',
+        boardStatus: 'IN_CONSTRUCTION',
+      },
+      'tutorial-standard-task-id': {
+        neighborhoodId: 'tutorial-neighborhood-id',
+        title: 'Tarea Tutorial Estándar',
+        weight: 'STANDARD',
+        boardStatus: 'MASTER_PLAN',
+      },
+    },
   };
 }

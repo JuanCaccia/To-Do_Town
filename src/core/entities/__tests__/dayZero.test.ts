@@ -9,6 +9,15 @@ function atLocal(year: number, month: number, day: number, hour: number, minute:
   return new Date(year, month - 1, day, hour, minute, 0, 0).getTime();
 }
 
+function singleHabit(state: GameState) {
+  const habits = Object.values(state.habits);
+  const [habit] = habits;
+  if (habits.length !== 1 || !habit) {
+    throw new Error(`Se esperaba exactamente 1 hábito, se encontraron ${habits.length}`);
+  }
+  return habit;
+}
+
 function dayZeroNeighborhood(state: GameState) {
   const neighborhood = state.neighborhoods['tutorial-neighborhood-id'];
   if (!neighborhood) {
@@ -139,6 +148,42 @@ describe('createDayZeroState — US-00 CA-03: semilla del Barrio Tutorial', () =
       [0, 1],
       [1, 2],
       [2, 3],
+    ]);
+  });
+});
+
+describe('createDayZeroState — US-00 CA-04: entidades interactivas del tutorial', () => {
+  it('siembra exactamente un hábito activo vinculado al Barrio Tutorial', () => {
+    const state = createDayZeroState(NOW);
+    const habit = singleHabit(state);
+
+    expect(habit.neighborhoodId).toBe('tutorial-neighborhood-id');
+    expect(habit.status).toBe('ACTIVE');
+    expect(habit.frequency).toEqual({ type: 'DAILY' });
+    expect(habit.checkpointLevel).toBe(1);
+    expect(habit.currentStreakDays).toBe(0);
+  });
+
+  it('nace sin cumplimientos y con la ventana de enfriamiento abierta en createdAt', () => {
+    const state = createDayZeroState(NOW);
+    const habit = singleHabit(state);
+
+    // Con lastCompletedAt nulo, la ventana corre desde createdAt => Pleno (1.0). Ver DEC-013.
+    expect(habit.lastCompletedAt).toBeNull();
+    expect(habit.createdAt).toBe(NOW);
+  });
+
+  it('siembra 2 tareas únicas del tutorial con peso y pizarra asignados', () => {
+    const state = createDayZeroState(NOW);
+    const tasks = Object.values(state.tasks);
+
+    const layout = tasks.map((task) => [task.weight, task.boardStatus]).sort();
+
+    expect(tasks).toHaveLength(2);
+    expect(tasks.every((task) => task.neighborhoodId === 'tutorial-neighborhood-id')).toBe(true);
+    expect(layout).toEqual([
+      ['COMPLEX', 'IN_CONSTRUCTION'],
+      ['STANDARD', 'MASTER_PLAN'],
     ]);
   });
 });
