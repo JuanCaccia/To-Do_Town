@@ -251,7 +251,7 @@ Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, ca
 
 - Dado que un barrio posee menos de 4 hábitos activos o pausados en su Plaza de Infraestructura (status !== 'RETIRED_TO_MUSEUM'),  
 - Cuando el usuario crea un nuevo hábito indicando un título válido y una frecuencia (DAILY o TIMES_PER_WEEK con count entre 1 y 6),  
-- Entonces el sistema registra un nuevo HabitBuilding vinculado al neighborhoodId con status: 'ACTIVE', currentStreakDays: 0, checkpointLevel: 1, lastCompletedAt: null (eficiencia derivada 0.0: apagado hasta su primer check-in); y si el barrio ya tiene ocupados sus 4 lotes productivos, rechaza la creación hasta que uno se mude o se retire al Museo.  
+- Entonces el sistema registra un nuevo HabitBuilding vinculado al neighborhoodId con status: 'ACTIVE', currentStreakDays: 0, checkpointLevel: 1, lastCompletedAt: null y createdAt: now (la ventana de enfriamiento corre desde createdAt, por lo que nace en Pleno: eficiencia derivada 1.0, ver GOVERNANCE.md DEC-013); y si el barrio ya tiene ocupados sus 4 lotes productivos, rechaza la creación hasta que uno se mude o se retire al Museo.  
 
 
 **CA-02: Cumplimiento de Hábito (Check-in), Recarga al 100% y Desbloqueo de Checkpoints**

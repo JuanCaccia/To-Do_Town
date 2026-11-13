@@ -194,8 +194,9 @@ export interface HabitBuilding {
   currentStreakDays: number;
   checkpointLevel: HabitCheckpointLevel;
   lastCompletedAt: TimestampMs | null;
+  createdAt: TimestampMs;                 // Origen de la ventana de enfriamiento (DEC-013)
   // Eficiencia NO persistida: se deriva con getHabitEfficiency(habit, operationalNow, cutoffHour).
-  // Ver GOVERNANCE.md §2.4 (DEC-005, DEC-006, DEC-012). Eficiencia canónica: {1, 2/3, 1/3, 0}.
+  // t = operationalNow - (lastCompletedAt ?? createdAt). Ver GOVERNANCE.md §2.4 (DEC-005/006/012/013).
   status: 'ACTIVE' | 'PAUSED' | 'RETIRED_TO_MUSEUM';
   pauseReason?: string;
   retiredAt?: TimestampMs;

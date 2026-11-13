@@ -47,7 +47,9 @@ Los tests unitarios de Vitest viven co-locados junto al código que prueban: `<c
 
 ### 2.4. Derivación Pura de la Eficiencia (`currentEfficiency`)
 
-La eficiencia **no se persiste** en el dominio. Se deriva siempre de forma determinista y pura mediante `getHabitEfficiency(habit, operationalNow, cutoffHour)` a partir de `(lastCompletedAt, frequency, operationalNow)`.
+La eficiencia **no se persiste** en el dominio. Se deriva siempre de forma determinista y pura mediante `getHabitEfficiency(habit, operationalNow, cutoffHour)` a partir de `(lastCompletedAt ?? createdAt, frequency, operationalNow)`.
+
+**Origen de la ventana (`t`):** `t = operationalNow − (lastCompletedAt ?? createdAt)`. Un hábito recién creado tiene `t = 0` y por lo tanto nace en **Pleno (1.0)**, conforme a la tabla de ECONOMY §2.1. Nunca existe un estado "apagado hasta el primer check-in": `null` en `lastCompletedAt` significa *nunca cumplido*, no *inexistente*.
 
 **Regla de Oro del Día Operativo Activo:** toda evaluación de decaimiento, enfriamiento y eficiencia usa el **Día Operativo Activo** como referencia de cálculo, nunca el `now` crudo del reloj del sistema. Esto evita transiciones visuales erráticas de los edificios a mitad de la jornada.
 
@@ -85,6 +87,7 @@ El respaldo **`.todotown`** validado con esquemas Zod es **funcionalidad de Prod
 | **DEC-010** | Excepción Fixture/Seed: los valores de bootstrap pertenecen a su US. | `BACKLOG.md` |
 | **DEC-011** | `DOMAIN_DESIGN.md` no legisla reglas ni números. | `DOMAIN_DESIGN.md` |
 | **DEC-012** | Día Operativo Activo como única referencia de decaimiento. | `ARCHITECTURE.md`, `BACKLOG.md` |
+| **DEC-013** | `HabitBuilding.createdAt` es el origen de la ventana: `t = operationalNow − (lastCompletedAt ?? createdAt)`. Un hábito nuevo nace en Pleno (1.0). Se anula la lectura "apagado hasta el primer check-in". | `ARCHITECTURE.md`, `BACKLOG.md`, `GOVERNANCE.md` §2.4 |
 
 ---
 
