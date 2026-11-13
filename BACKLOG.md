@@ -1,5 +1,5 @@
 
-### 1. US-00 (sistema): Día Cero y Ciclo de Vida del Barrio Tutorial `[IN PROGRESS]`:
+### 1. US-00 (sistema): Día Cero y Ciclo de Vida del Barrio Tutorial `[BLOCKED: US-02 CA-01]`:
 Como sistema, necesito inicializar una ciudad base con un barrio tutorial al abrir la aplicación por primera vez y eliminarlo cuando se cree el primer barrio real, para guiar el aprendizaje inicial sin ensuciar el progreso definitivo.   
 
 #### Criterios de Aceptación:
@@ -40,7 +40,7 @@ Como sistema, necesito inicializar una ciudad base con un barrio tutorial al abr
 
 
 
-### US-01 (sistema): Persistencia Local y Registro de Eventos
+### US-01 (sistema): Persistencia Local y Registro de Eventos `[IN PROGRESS]`
 El sistema debe guardar cada cambio de estado y evento de forma transparente para que el usuario mantenga su progreso seguro sin esfuerzo.  
 
 #### Criterios de Aceptación:

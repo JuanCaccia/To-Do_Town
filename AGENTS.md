@@ -7,7 +7,7 @@ Sos mi par de programación (**Navigator / Driver**) en el desarrollo de **To-Do
 ## 1. Mapa de Documentación (Pull Reference, NO Push)
 
 * `GOVERNANCE.md`: **Ley suprema del repo.** Protocolo de Alineación y Gobernanza Técnica. Ante cualquier conflicto entre documentos, rige su tabla de precedencia. Este archivo (`AGENTS.md`) está subordinado a él.
-* `BACKLOG.md`: **Fuente de trabajo activa.** Solo trabajamos en la User Story marcada como `[IN PROGRESS]`.
+* `BACKLOG.md`: **Fuente de trabajo activa.** Solo trabajamos en la User Story marcada como `[IN PROGRESS]`, y debe haber **exactamente una** en ese estado. Una US cuyos CAs dependen de otra historia se marca `[BLOCKED: <desbloqueante>]` y permanece visible en el BACKLOG; vuelve a `[IN PROGRESS]` cuando el desbloqueante cierra. Nunca se la deja en `[IN PROGRESS]` mientras está esperando.
 * `ROADMAP.md`: Estrategia macro de Épicas y Quality Gates.
 * `DOMAIN_DESIGN.md`, `ECONOMY.md`, `ARCHITECTURE.md`: **Oráculos pasivos de consulta.**
   * **REGLA YAGNI ESTRICTA:** Tenés prohibido leer esos documentos para crear interfaces, tipos, constantes o funciones de historias futuras. Solo extraemos las definiciones exactas que pide el Criterio de Aceptación actual.
