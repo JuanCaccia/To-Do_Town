@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Odyssey OS "pearl": the content surface.
+     Never pure white (#ffffff) — it glares against a black overall. */
+  --color-pearl: #ececec;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Native controls (select popups, scrollbars) follow their surface: dark on the
+   black canvas, light inside a pearl panel. */
+html {
+  color-scheme: dark;
+}
+
+@layer utilities {
+  .scheme-pearl {
+    color-scheme: light;
+  }
+}

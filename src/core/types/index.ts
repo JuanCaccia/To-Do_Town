@@ -1,6 +1,17 @@
 export type TimestampMs = number;
 
 export type EntityId = string;
+
+export interface DomainEventRecord {
+  eventId: EntityId;
+  userId: string;
+  deviceId: string;
+  timestamp: TimestampMs;
+  type: string;
+  payload: Record<string, unknown>;
+  syncedAt: TimestampMs | null;
+}
+
 export type ArchitecturalThemeId = string;
 
 export interface UserProfileAndEntitlements {
@@ -36,12 +47,12 @@ export interface CentralAqueduct {
   totalHistoricalLiters: number;
   dailyLiters: number;
   dailyTargetLiters: number;
-  lastOperationalDay: string;
 }
 
 export interface House {
   lotIndex: 0 | 1 | 2 | 3 | 4 | 5;
   designVariant: 1 | 2 | 3;
+  createdAt: TimestampMs;
 }
 
 export interface CityBlock {
@@ -50,12 +61,25 @@ export interface CityBlock {
   isLeveled: boolean;
 }
 
+export type DecorationKind = 'SMALL_PLAZA' | 'FOUNTAIN_PARK' | 'CIVIC_MONUMENT';
+
+export interface DecorationItem {
+  id: EntityId;
+  kind: DecorationKind;
+}
+
 export interface Neighborhood {
   name: string;
   isTutorial?: boolean;
+  paletteId: string;
+  architecturalThemeId: ArchitecturalThemeId;
   infrastructureLevel: 1 | 2 | 3 | 4;
   treasuryCoins: number;
   urbanizationProgress: number;
+  dailyTasksCompletedCount: number;
+  lastOperationalDay: string;
+  reactivationPenaltyUntil: TimestampMs | null;
+  decorations: DecorationItem[];
   blocks: CityBlock[];
 }
 
@@ -83,12 +107,15 @@ export interface OneOffTask {
   title: string;
   weight: TaskWeight;
   boardStatus: 'MASTER_PLAN' | 'IN_CONSTRUCTION' | 'COMPLETED';
+  createdAt: TimestampMs;
+  completedAt: TimestampMs | null;
 }
 
 export interface GameState {
   cityStatus: 'ACTIVE' | 'MANUAL_PAUSE' | 'AUTO_PAUSED_HIBERNATION';
   lastTickAt: TimestampMs;
   lastUserInteractionAt: TimestampMs;
+  lastOperationalDay: string;
   account: UserProfileAndEntitlements;
   config: {
     dayCycle: DayCycleConfig;

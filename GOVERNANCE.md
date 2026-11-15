@@ -17,7 +17,10 @@ Ningún documento pisa el terreno de otro.
 | **`ARCHITECTURE.md`** | Estructura de carpetas, capas, contratos de puertos y tipos. | Reglas de juego, narrativa o balance económico. |
 | **`ROADMAP.md`** | Orden macro de ejecución, hitos y Quality Gates. | Comportamiento de dominio o constantes numéricas. |
 | **`DOMAIN_DESIGN.md`** | Narrativa, estética, geografía y filosofía. | Reglas y números (actúa solo como oráculo descriptivo y estético). |
+| **`UI_DESIGN.md`** | Materialización visual del HUD en DOM: geometría, paleta, tipografía, interacción y tokens de clase. | Inventario de zonas del HUD, atajos de teclado, arte del lienzo isométrico o valores económicos. |
 | **`AGENTS.md`** | Protocolo de Pair Programming, comandos, flujos TDD y ubicación de tests. | Reglas de dominio, fórmulas económicas o estructura del sistema. |
+
+**Frontera `DOMAIN_DESIGN.md` / `UI_DESIGN.md`:** `DOMAIN_DESIGN.md` §6 legisla el **arte del lienzo isométrico**; `UI_DESIGN.md` legisla el **HUD en DOM**. Son dos superficies estéticas distintas por diseño (la ciudad es cálida y pixelada; el HUD es frío y ortogonal). `DOMAIN_DESIGN.md` §7 conserva el **inventario** de zonas del HUD; `UI_DESIGN.md` define cómo se ven. Donde §7 use prosa incompatible (píldoras, paneles flotantes), rige `UI_DESIGN.md` §0.2.
 
 ### 1.1. Subordinación de `AGENTS.md`
 
@@ -39,7 +42,7 @@ IndexedDB con dos **object stores** (`game_state` y `domain_events`) en una **ú
 
 ### 2.2. Port-First
 
-Todo adapter implementa una interfaz pura previa ubicada en `src/core/ports/` (`StoragePort.ts`, `EventLogPort.ts`, `IdPort.ts`, `RandomPort.ts`), garantizando que `src/core` mantenga cero dependencias externas.
+Todo adapter implementa una interfaz pura previa ubicada en `src/core/ports/` (`StoragePort.ts`, `EventLogPort.ts`, `UnitOfWorkPort.ts`, `IdPort.ts`, `RandomPort.ts`), garantizando que `src/core` mantenga cero dependencias externas.
 
 ### 2.3. Co-locación de Tests (TDD)
 
@@ -88,6 +91,9 @@ El respaldo **`.todotown`** validado con esquemas Zod es **funcionalidad de Prod
 | **DEC-011** | `DOMAIN_DESIGN.md` no legisla reglas ni números. | `DOMAIN_DESIGN.md` |
 | **DEC-012** | Día Operativo Activo como única referencia de decaimiento. | `ARCHITECTURE.md`, `BACKLOG.md` |
 | **DEC-013** | `HabitBuilding.createdAt` es el origen de la ventana: `t = operationalNow − (lastCompletedAt ?? createdAt)`. Un hábito nuevo nace en Pleno (1.0). Se anula la lectura "apagado hasta el primer check-in". | `ARCHITECTURE.md`, `BACKLOG.md`, `GOVERNANCE.md` §2.4 |
+| **DEC-014** | Quinto puerto `UnitOfWorkPort` (`commit(state, event)`). La escritura atómica snapshot + evento se expone como **garantía nombrada** en lugar de esconderse dentro de `EventLogPort` o de componerse con `saveState` + `appendEvent` sueltos. Un puerto cuya razón de existir es la atomicidad hace visible el único camino correcto a través del Outbox. | `ARCHITECTURE.md` §3, `src/core/ports`, `BACKLOG.md` US-01 |
+| **DEC-015** | Se incorpora **`UI_DESIGN.md`** como séptimo documento normativo, con dominio propio: materialización visual del HUD en DOM. **Supersede el conteo de seis documentos de DEC-001**; la subordinación de `AGENTS.md` sigue vigente. Se fija la frontera `DOMAIN_DESIGN.md` §6 (arte del lienzo) / `UI_DESIGN.md` (chrome DOM) y se resuelven las divergencias con `DOMAIN_DESIGN.md` §7: radio cero sustituye "píldoras", módulos adosados sustituyen "paneles flotantes", y el atajo del Drawer es `Ctrl+B` / `[` porque `Tab` pertenece a la navegación por foco. El sistema se denomina **Odyssey OS**. | `UI_DESIGN.md`, `DOMAIN_DESIGN.md` §7, `AGENTS.md` §1, `src/ui/hud` |
+| **DEC-016** | `calculateTick(state, now)` nace en **US-05** como **orquestador de jornada**: detecta el cambio de día operativo y ejecuta el reciclaje nocturno (tareas `IN_CONSTRUCTION` → `MASTER_PLAN`, reset de contadores diarios de barrio, estamina global y `dailyLiters`). **No liquida producción pasiva.** US-07 CA-03 es dueña de esa liquidación y **extiende** ese mismo `calculateTick`; tiene prohibido crear un tick paralelo o duplicar la detección de jornada. | `BACKLOG.md` US-05, US-07 |
 
 ---
 

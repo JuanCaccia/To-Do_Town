@@ -96,17 +96,22 @@ describe('createDayZeroState — US-00 CA-02: núcleo cívico en Nivel 1', () =>
       totalHistoricalLiters: 0,
       dailyLiters: 0,
       dailyTargetLiters: 2.0,
-      lastOperationalDay: expect.any(String),
     });
   });
 
-  it('calcula lastOperationalDay según now y el corte de día con gracia', () => {
+  it('calcula lastOperationalDay global y por barrio según now y el corte de día con gracia', () => {
     const beforeGraceEnds = createDayZeroState(atLocal(2026, 1, 15, 2, 0));
     const afterGraceEnds = createDayZeroState(atLocal(2026, 1, 15, 5, 0));
 
     // Corte 00:00 + 4 h de gracia: a las 02:00 la jornada todavía es la del día 14.
-    expect(beforeGraceEnds.globals.aqueduct.lastOperationalDay).toBe('2026-01-14');
-    expect(afterGraceEnds.globals.aqueduct.lastOperationalDay).toBe('2026-01-15');
+    expect(beforeGraceEnds.lastOperationalDay).toBe('2026-01-14');
+    expect(beforeGraceEnds.neighborhoods['tutorial-neighborhood-id']?.lastOperationalDay).toBe(
+      '2026-01-14',
+    );
+    expect(afterGraceEnds.lastOperationalDay).toBe('2026-01-15');
+    expect(afterGraceEnds.neighborhoods['tutorial-neighborhood-id']?.lastOperationalDay).toBe(
+      '2026-01-15',
+    );
   });
 });
 

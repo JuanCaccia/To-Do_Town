@@ -27,7 +27,7 @@ src/
 │   ├── rules/                   # Fórmulas: decaimiento, fatiga, adyacencia 2x3, corte de día + gracia, pomodoro 80%
 │   ├── modifiers/               # ModifierResolver (beneficios de Agua e Inercia Urbana desacoplados)
 │   ├── engine/                  # Motor principal (calculateTick, applyAction, undoAction)
-│   └── ports/                   # Contratos puros: StoragePort.ts, EventLogPort.ts, IdPort.ts, RandomPort.ts
+│   └── ports/                   # Contratos puros: StoragePort.ts, EventLogPort.ts, UnitOfWorkPort.ts, IdPort.ts, RandomPort.ts
 │
 ├── adapters/                    # CAPA DE INFRAESTRUCTURA
 │   ├── storage/                 # IndexedDBAdapter (Etapa 1: game_state + domain_events en una sola transacción), SQLiteAdapter (Etapa 2), Migraciones

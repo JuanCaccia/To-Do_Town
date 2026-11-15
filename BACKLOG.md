@@ -1,5 +1,5 @@
 
-### 1. US-00 (sistema): Día Cero y Ciclo de Vida del Barrio Tutorial `[BLOCKED: US-02 CA-01]`:
+### 1. US-00 (sistema): Día Cero y Ciclo de Vida del Barrio Tutorial `[DONE]`:
 Como sistema, necesito inicializar una ciudad base con un barrio tutorial al abrir la aplicación por primera vez y eliminarlo cuando se cree el primer barrio real, para guiar el aprendizaje inicial sin ensuciar el progreso definitivo.   
 
 #### Criterios de Aceptación:
@@ -40,7 +40,9 @@ Como sistema, necesito inicializar una ciudad base con un barrio tutorial al abr
 
 
 
-### US-01 (sistema): Persistencia Local y Registro de Eventos `[IN PROGRESS]`
+### US-01 (sistema): Persistencia Local y Registro de Eventos `[DONE]`
+> **Alcance cerrado:** dominio + adapter. Los 4 CAs están implementados y testeados (28 tests). **Fase 4 cerrada:** `main.tsx` hidrata antes de montar React y el registro `game_state` sobrevive a la recarga con `lastTickAt` intacto (verificado a mano).
+
 El sistema debe guardar cada cambio de estado y evento de forma transparente para que el usuario mantenga su progreso seguro sin esfuerzo.  
 
 #### Criterios de Aceptación:
@@ -72,9 +74,19 @@ El sistema debe guardar cada cambio de estado y evento de forma transparente par
 
 - Entonces sobrescribe el snapshot actualizado en el almacén game_state e inserta en el mismo flujo el nuevo registro DomainEventRecord en domain_events adjuntando userId: 'local-owner', el identificador del dispositivo (deviceId: 'desktop') y syncedAt: null.  
 
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+- **CA-04 → US-12 CA-02:** `EventLogPort.appendEvent` sigue sin implementarse en el adapter; el alta de eventos hoy sólo existe dentro de `commit`. US-12 CA-02 exige emitir un evento compensatorio `ACTION_UNDONE`; decidir entonces si ese flujo pasa por `commit` o necesita un `appendEvent` suelto (sin snapshot). No inventarlo antes.
+- **CA-04 → Etapa 3 (CloudSync):** `userId: 'local-owner'` y `deviceId: 'desktop'` están hardcodeados en `IndexedDBAdapter` (`LOCAL_DEVICE_IDENTITY`). Cuando exista cuenta real, la identidad debe inyectarse por constructor.
+- **CA-03 → Fase 4 (resuelto):** `main.tsx` hidrata con `await hydrateGameState(...)` **antes** de `createRoot`. Se descartó `useEffect`: bajo `StrictMode` se ejecuta dos veces y podía sembrar dos Días Cero con timestamps distintos.
+- **Resuelto en CA-03/CA-04:** claves definidas (`GAME_STATE_KEY = 'current'` para el snapshot; `eventId` como clave out-of-line con `add` en `domain_events`); conexión abierta y cerrada por operación; método atómico `UnitOfWorkPort.commit` (DEC-014) reemplaza la composición `saveState` + `appendEvent`.
 
 
-### US-02 (usuario): Creación y Urbanización de Barrios
+
+
+
+### US-02 (usuario): Creación y Urbanización de Barrios `[DONE]`
+> **Alcance cerrado:** dominio. Los 4 CAs están implementados y testeados (51 tests). **Fase 4 cerrada:** las Pruebas 1-3 (alta desde el HUD, economía estanca visual, flujo de mejora) fueron validadas a mano contra el HUD. Prueba 3 se validó en su **mecánica**; sus números literales (50 → 80 XP) exigen un saldo inicial que sólo la herramienta DEV puede sembrar sin ensuciar el XP previo (ver Deuda Registrada).
+
 Como usuario, quiero crear barrios con un nombre y una paleta cromática, y gastar sus monedas locales en mejoras, decoraciones y nivelación de terreno, para organizar mis ámbitos de vida y embellecer cada distrito de forma aislada.  
 #### Criterios de Aceptación (Dominio y Reglas):
 **CA-01: Creación de Barrio Personalizado con Cuadra Inicial y Economía Estanca**
@@ -105,6 +117,22 @@ Como usuario, quiero crear barrios con un nombre y una paleta cromática, y gast
 
 - Entonces descuenta el costo de la tesorería local, agrega el ítem a decorations del barrio y acredita el XP Global en el Ayuntamiento (+25 XP, +60 XP o +125 XP respectivamente).  
 
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+- **CA-01 → US-00 CA-05 (resuelto):** `createNeighborhood` ya purga el Barrio Tutorial completo — barrio, hábito y sus 2 tareas — en la misma transición de estado. La purga se deriva del dato (`isTutorial === true`), nunca de un id literal.
+- **CA-01 → borde (resuelto en Fase 4):** el `id` del barrio entra como dato, nunca se genera en `src/core` (`GOVERNANCE.md` §2.6). `IdPort.ts` y `CryptoIdAdapter` existen desde el Peldaño 1 del slice: la generación de UUIDs vive en el borde, donde le corresponde.
+- **CA-01:** no valida nombre vacío. El CA lo declara precondición del usuario, no regla del motor; se decide cuando la UI lo exija.
+- **CA-01 → US-05:** `lastOperationalDay` a nivel barrio (declarado en `ARCHITECTURE.md` §5) todavía no existe en el tipo. Se agrega cuando la jornada operativa lo necesite.
+- **CA-01 → CA-04:** `DecorationKind` ya declara los tres valores del catálogo; precios, efectos y XP llegan con CA-04 y ECONOMY.
+- **CA-02 → CA-03/CA-04:** `withQualityOfLifeXp` (`src/core/rules/townHallLevel.ts`) ya resuelve el recálculo del nivel del Ayuntamiento; CA-03 (+30 XP) y CA-04 (+25/+60/+125 XP) deben reusarla, nunca reimplementar el umbral.
+- **CA-02 → CA-03/CA-04:** las constantes de costo viven hoy dentro de `infrastructureUpgrade.ts`. `ARCHITECTURE.md` §3 reserva `src/core/constants/economyConstants.ts` para tasas y costos: cuando CA-03 sume los costos de nivelación (300/600/1000) y CA-04 los de decoración, todas deben mudarse ahí en un solo movimiento.
+- **CA-02:** el resultado de la mejora devuelve `cost` además del estado, para que el HUD muestre el precio sin duplicar la fórmula. Mantener esa decisión en CA-03/CA-04.
+- **CA-03 → US-03 CA-04:** nivelar una cuadra la direcciona por `gridPosition`. **La unicidad de coordenadas dentro de un barrio pasa a ser un invariante de dominio**, no un detalle de render: US-03 CA-04 (algoritmo de adyacencia) y cualquier alta de cuadra deben garantizarla.
+- **CA-03 → `ARCHITECTURE.md` §5:** `CityBlock.id` sigue sin existir. Se agrega sólo si algún CA demuestra que la posición no alcanza como identidad, y en ese momento ya debe existir `IdPort` para generarlo.
+- **Resuelto en CA-04:** todas las constantes económicas (infraestructura, nivelación, decoraciones) viven en `src/core/constants/economyConstants.ts`, como pide `ARCHITECTURE.md` §3. Todo valor nuevo de ECONOMY entra ahí, nunca dentro de una regla.
+- **CA-04 → próxima US con economía:** `purchaseNeighborhoodDecoration` recibe `decorationId` como dato; el borde debe generarlo. Deuda saldada: `IdPort.ts` existe desde la Fase 4 y el store lo usa dentro de `purchaseDecoration`.
+
+
+
 #### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
 **Prueba 1: Alta de primer barrio real y reemplazo del tutorial**
 - Acción: Abrir el HUD en el Día Cero, hacer clic en "Crear Barrio", ingresar el nombre "GYM", elegir una paleta de color y confirmar.  
@@ -123,8 +151,9 @@ Como usuario, quiero crear barrios con un nombre y una paleta cromática, y gast
 
 
 
-### US-03 (sistema): Expansión Automática de Cuadras
-Como sistema, necesito inaugurar y posicionar una nueva cuadra rústica cuando las casas construidas superen la capacidad actual, para que el barrio crezca orgánicamente sin que el usuario tenga que administrar el espacio manualmente.  
+### US-03 (sistema): Expansión Automática de Cuadras `[DONE]`
+> **Alcance cerrado:** dominio. Los 4 CAs están implementados y testeados (16 tests nuevos; 67 en el proyecto). **La Fase 4 sigue diferida al cierre de US-04:** la expansión no tiene todavía disparador de UI ni render; hoy se ejerce únicamente a través de `settleUrbanization`.
+Como sistema, necesito inaugurar y posicionar una nueva cuadra rústica cuando las casas construidas superen la capacidad actual, para que el barrio crezca orgánicamente sin que el usuario tenga que administrar el espacio manualmente.  
 #### Criterios de Aceptación:
 **CA-01: Conversión de Barra de Urbanización en Casa Nueva y Ganancia de XP**
 - Dado que el progreso de urbanización de un barrio (urbanizationProgress) suma puntos y alcanza o supera el 100% (ej. pasa de 75% a 125% tras una acción),  
@@ -159,7 +188,24 @@ Como sistema, necesito inaugurar y posicionar una nueva cuadra rústica cuando l
 
 
 
-### US-04 (usuario): Gestión de Tareas y Construcción Residencial
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+- **Resuelto en CA-04 (`gridPosition`):** la unicidad de coordenadas que US-02 CA-03 dejó declarada como invariante de dominio queda **garantizada por construcción**. Los candidatos de `freePosition` son vecinos ortogonales *libres* de cuadras existentes: dos cuadras no pueden compartir posición. Deuda saldada, no diferida.
+- **CA-01 → US-04 CA-03 (contrato obligatorio):** US-04 debe invocar `settleUrbanization(state, neighborhoodId, now)` al cerrar la tarea que cruce el 100% de urbanización. **US-03 es dueño exclusivo de los +10 XP por casa;** US-04 no debe tocar `townHall` por urbanización. Esto es lo que impide la doble acreditación de XP anotada en la tabla de deuda.
+- **CA-01 → `House`:** el tipo gana `createdAt: TimestampMs` requerido. La semilla del tutorial lo toma de `now`; el test de `dayZero` no se modificó (sólo mapea `lotIndex`/`designVariant`).
+- **CA-01:** el bucle es `floor(progress / 100)`, nunca un `if` de un solo umbral. Con 250% nacen 2 casas y se conserva el excedente exacto.
+- **CA-02:** `designVariant` se resuelve por `DESIGN_VARIANT_BY_LOT`, un `Record` exhaustivo por tipo. Si `House['lotIndex']` crece, `tsc` obliga a completar el mapa. Se eliminó el fallback `?? 1` que inventaba variante.
+- **CA-02 → CA-03:** el lote se elige como **primer libre real**, no derivado de `houses.length`. Con huecos (lotes 0 y 2 ocupados) la versión anterior apilaba dos casas en el lote 2.
+- **CA-03:** la cuadra nueva nace `isLeveled: false` de forma incondicional, ignorando `infrastructureLevel` (lo exige el CA y lo fija un test).
+- **CA-03 → deuda menor:** en `placeHouses` la guarda `activeBlock !== undefined` del `while` es código muerto (tras `result.push` siempre hay cuadra). Se conserva por tipos, no por lógica.
+- **CA-04 → decisión abierta:** el desempate del CA hace que, con una única cuadra en `{ x: 0, y: 0 }`, la segunda nazca en `{ x: 0, y: -1 }`. El barrio crece hacia `y` negativa. Si el render de la Fase 4 lo rechaza, **se modifica el CA en `BACKLOG.md`**, no el código por la puerta de atrás.
+- **CA-04:** `freePosition` lanza si no encuentra candidato. La rama es inalcanzable (sólo se inaugura con al menos una cuadra existente); se eligió fallar ruidoso antes que devolver una coordenada inventada.
+- **CA-04 → tests:** los tests de CA-03 **no asertan `gridPosition`** a propósito. Fijar coordenadas ahí habría inventado la mitad de CA-04 en el CA equivocado.
+
+
+
+
+### US-04 (usuario): Gestión de Tareas y Construcción Residencial `[DONE]`
+> **Alcance cerrado:** dominio. Los 4 CAs están implementados y testeados (15 tests en el archivo, 82 en el proyecto). **Con esta US se cierra el loop `tarea → monedas → urbanización → casa`.** **Fase 4 cerrada:** las Pruebas 1-3 del HUD fueron validadas a mano (Drawer con `Ctrl+B`, alta, activación y completado con casa nacida y +10 XP).
 Como usuario, quiero registrar tareas según su complejidad, activarlas en mi pizarra del día y completarlas, para construir nuevas casas y obtener monedas locales en el barrio correspondiente.   
 
 #### Criterios de Aceptación (Dominio y Reglas):
@@ -189,6 +235,18 @@ Como usuario, quiero registrar tareas según su complejidad, activarlas en mi pi
 - Entonces el sistema actualiza las propiedades solicitadas o remueve la tarea del registro tasks sin otorgar ni descontar monedas ni progreso de urbanización. (Las tareas con estado 'COMPLETED' son inmutables frente a edición/borrado directo, salvo mediante la ventana de Undo de US-12).  
 
 
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+- **CA-03 → deuda saldada (doble acreditación de XP):** cerrada de raíz. `completeTask` **delega** en `settleUrbanization` y el test aserta `townHall.qualityOfLifeXP === 10` **exacto** tras cruzar el 100%. US-04 no tiene código capaz de otorgar XP de casa, así que el bug no puede reaparecer.
+- **CA-03 → representación:** el "contador diario global de la ciudad" **no se guarda**. Se deriva sumando `dailyTasksCompletedCount` de todos los barrios, porque US-05 CA-04 lo define literalmente como "la suma total de tareas completadas hoy entre todos los barrios". US-05 CA-02 debe resetear **solo** los contadores de barrio; el global se sigue solo.
+- **CA-03 → US-05:** la fatiga **no está implementada**. CA-03 cubre únicamente el tramo óptimo (`M_fatiga = 1.0`). US-05 CA-03/CA-04 deben **envolver** `TASK_REWARDS` con el multiplicador, nunca reescribir las recompensas base.
+- **CA-03 → `economyConstants.ts`:** `TASK_REWARDS` (SIMPLE 20/+10, STANDARD 50/+25, COMPLEX 100/+50) vive ahí, según la regla de US-02 CA-02 (todo valor de ECONOMY va a las constantes).
+- **CA-01 → borde (resuelto en Fase 4):** el `id` de la tarea entra **como dato** y es la clave del `Record` `tasks`. `IdPort.ts` existe y el store genera el `taskId` antes de llamar a la regla pura.
+- **CA-01, CA-04:** no se valida título vacío ni barrio o tarea inexistente. El CA los declara precondición del usuario, no regla del motor. Se decide en `Prueba 1` del HUD, donde existe el botón de guardar.
+- **CA-01/CA-03 → tipos:** `OneOffTask` gana `createdAt: TimestampMs` y `completedAt: TimestampMs | null` (coherente con `HabitBuilding.lastCompletedAt`). El ripple tocó `dayZero.ts` y el fixture de `neighborhood.test.ts`: **ninguna aserción cambió**. El segundo lo detectó `tsc`, no vitest — de ahí la regla de que el gate es `test && typecheck`.
+- **CA-02 → `moveTask`:** el destino es explícito (`'MASTER_PLAN' | 'IN_CONSTRUCTION'`), no un toggle. Un toggle con doble click o reintento termina en el estado opuesto al pedido.
+- **CA-04 → decisión de contrato:** `updateTask`/`deleteTask` devuelven `GameState` y son **no-op** sobre tareas `COMPLETED`. Se descartó la unión con rechazo porque la UI filtra por `boardStatus` y no hay dónde mostrar el motivo; `blockLeveling` sí la tiene porque "saldo insuficiente" es un mensaje real. Si US-12 necesita el motivo, se agrega ahí.
+- **CA-02 vs CA-04 (borde cerrado):** el duplicate-reward exploit quedó cerrado. `moveTask` ya no mueve una tarea `COMPLETED` (lista negra) y `completeTask` exige `boardStatus === 'IN_CONSTRUCTION'` (lista blanca). Invariante único: **solo una tarea En Obra es completable; solo una tarea pendiente es movible.** Dos tests nuevos lo fijan: reabrir una completada devuelve el estado idéntico, y completar dos veces no duplica monedas, urbanización, contador ni XP de Ayuntamiento. 84 tests verdes.
+
 #### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
 
 **Prueba 1: Apertura del Drawer y alta en el Plano Maestro**
@@ -208,7 +266,8 @@ Como usuario, quiero registrar tareas según su complejidad, activarlas en mi pi
 
 
 
-### US-05 (sistema): Reciclaje Nocturno de Tareas y Regulación de Fatiga
+### US-05 (sistema): Reciclaje Nocturno de Tareas y Regulación de Fatiga `[DONE]`
+> **Alcance cerrado:** los 4 CAs están implementados y testeados (44 tests nuevos; 137 en el proyecto). **Fase 4 cerrada:** `calculateTick` corre al arrancar (`main.tsx`, después de hidratar) y cada 60 s vía `useGameLoop`; la rotación se persiste con un evento `OPERATIONAL_DAY_ROLLED_OVER`. El Drawer muestra la recompensa **efectiva** con badge `FATIGA ×0.5` / `AGOTADO ×0.1`. Auditorías de `UI_DESIGN.md` §7 pasadas y build de producción OK. **Pruebas 1-2 validadas a mano (2026-11-15).**
 Como sistema, necesito devolver las tareas inconclusas al listado general cuando finalice el día operativo y ajustar las recompensas cuando se supere el cupo diario de trabajo, para que el usuario comience cada jornada limpio de culpa y mantenga un ritmo sostenible.  
 
 
@@ -237,9 +296,35 @@ Como sistema, necesito devolver las tareas inconclusas al listado general cuando
 
 - Dado que la suma total de tareas completadas hoy entre todos los barrios determina el consumo de Estamina Global de la ciudad,  
 - Cuando el usuario completa una tarea en cualquier barrio,  
-- Entonces el motor calcula el multiplicador global (1.0 para las tareas globales 1 a (8 + B_agua), 0.5 para las 6 tareas siguientes, y 0.1 para el excedente posterior) y aplica como multiplicador final efectivo M_fatiga el mínimo entre el multiplicador del barrio y el multiplicador global, afectando proporcionalmente tanto a las monedas ganadas como al porcentaje sumado en urbanizationProgress.   
+- Entonces el motor calcula el multiplicador global (1.0 para las tareas globales 1 a (8 + B_agua), 0.5 para las 6 tareas siguientes, y 0.1 para el excedente posterior) y aplica como multiplicador final efectivo M_fatiga el mínimo entre el multiplicador del barrio y el multiplicador global, afectando proporcionalmente tanto a las monedas ganadas como al porcentaje sumado en urbanizationProgress.  
 
 
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+- **CA-01 (ya en verde por US-00 CA-02):** `getOperationalDay` (`src/core/rules/dayCycle.ts`) ya implementa corte + gracia y está cubierto de forma indirecta en `dayZero.test.ts`. No se reimplementa: esta US sólo le da test co-locado propio en `src/core/rules/__tests__/dayCycle.test.ts` y lo cierra. Ese test **no puede nacer en rojo** porque el código lo precede.
+- **CA-02 → US-07 CA-03 (contrato obligatorio, DEC-016):** `calculateTick` nace **aquí** como orquestador mínimo de jornada: detecta el cambio de día operativo y ejecuta el reciclaje (`IN_CONSTRUCTION` → `MASTER_PLAN`, reset de `dailyTasksCompletedCount` por barrio, estamina global y `dailyLiters: 0`). **No liquida producción pasiva.** US-07 CA-03 es dueña de esa liquidación y **extiende** este mismo `calculateTick`; tiene prohibido crear un tick paralelo o duplicar la detección de jornada.
+- **Resuelto en CA-02 (tipos):** `lastOperationalDay` subió a `GameState.lastOperationalDay` y a cada `Neighborhood.lastOperationalDay`; el campo suelto de `globals.aqueduct` se eliminó. `createNeighborhood` no recibe `now`: el barrio nuevo **hereda** `state.lastOperationalDay`, porque el día global es la fuente de verdad y el barrio sólo lo copia.
+- **Resuelto en Fase 4:** `calculateTick` corre al arrancar (`main.tsx`, después de hidratar) y cada 60 s (`useGameLoop`, `GAME_LOOP_INTERVAL_MS`). Como la regla devuelve la misma referencia cuando el día no cambió, el loop nunca escribe eventos fantasma. **Observación heredada:** el Outbox se lee por `eventId`, así que `listPendingEvents` **no** devuelve orden de inserción; si el orden importa, sale del `timestamp` de cada evento (relevante para CloudSync).
+- **CA-03/CA-04 → ECONOMY §2.3:** `B_agua = min(2, ⌊dailyLiters⌋)`. El texto del CA dice `min(2, dailyLiters)` sin truncar y se lee **según ECONOMY** (GOVERNANCE §1.2). Con 1.5 L el bono es +1 tarea, no +1.5.
+- **CA-03/CA-04 → `economyConstants.ts`:** umbrales (5 local / 8 global, +5 / +6, 0.5, 0.1) y `B_agua` son valores de ECONOMY: viven en constantes, nunca dentro de la regla.
+- **CA-04 → `completeTask` (US-04):** la fatiga **envuelve** `TASK_REWARDS`, no las reescribe, y afecta monedas **y** `urbanizationProgress`. Los tests existentes de US-04 (20/50/100 con contador en 0) deben seguir verdes sin modificarse.
+- **CA-04 → estamina global:** se **deriva** sumando `dailyTasksCompletedCount` de todos los barrios (decidido en US-04 CA-03). No se persiste un contador global: resetear los barrios resetea el global por construcción.
+
+
+
+#### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
+
+**Prueba 1: Fatiga visible en la Pizarra Diaria**
+- Acción: En un barrio con 5 tareas completadas hoy y 0 L de agua, abrir la Pizarra Diaria y mirar una tarea COMPLEX activa.
+
+- Resultado esperado: La tarea muestra el badge `FATIGA ×0.5` y la recompensa a la mitad (`+50 CR / +25%`), no `+100 CR / +50%`.
+
+**Prueba 2: Rotación de jornada al recargar**
+- Acción: Dejar 1 tarea en "En Obra (Hoy)", cerrar la aplicación y reabrirla pasadas las 04:00 del día siguiente.
+
+- Resultado esperado: La tarea vuelve al Plano Maestro, los contadores diarios del barrio y del HUD quedan en 0, la tesorería conserva las monedas de ayer y no aparece ninguna penalización.
+
+**Estado: VALIDADO a mano (2026-11-15).** Fatiga visible y cobro a la mitad desde la 6ª tarea; rotación de jornada al recargar con reciclaje de tareas, contadores en 0, tesorería intacta y sin eventos fantasma en la segunda recarga.
 
 ### US-06 (usuario): Gestión, Mudanza y Retiro de Hábitos:
 Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, cambiar su frecuencia, mudarlos de distrito o retirarlos al museo cuando alcancen su nivel máximo, para consolidar mis rutinas y liberar espacio manteniendo su reconocimiento histórico.   
@@ -335,6 +420,9 @@ El sistema debe calcular la generación pasiva de monedas y reducir gradualmente
 - Entonces el hábito detiene su producción de monedas pero no pierde su edificio ni vuelve a cero absoluto: conserva intacto su checkpointLevel alcanzado (1, 2, 3, 4 o 5) y retrocede su currentStreakDays únicamente hasta el piso de días de ese último Checkpoint seguro (0/1 en Nv.1, 7 en Nv.2, 21 en Nv.3, 50 en Nv.4, o 100 en Nv.5).   
 
 
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+- **CA-03 → US-05 CA-02 (deuda aceptada, DEC-016):** `calculateTick` ya existe desde US-05 como orquestador de jornada (reciclaje nocturno y reset diario). Esta US **extiende esa misma función** con la liquidación de producción pasiva: no crea un segundo tick ni reimplementa la detección de cambio de día operativo.
 
 ### US-08 (usuario): Registro de Hidratación, Lectura y Sesiones de Foco
 Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis sesiones de concentración asignadas a un barrio, para hacer evolucionar los edificios centrales de la ciudad y obtener recompensas por mi tiempo de estudio.   
@@ -555,4 +643,34 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 **CA-03: Depuración Automática (Garbage Collection) de Instantáneas Vencidas**
 - Dado que la cola de instantáneas en useGameStore contiene uno o más registros UndoSnapshot,  
 - Cuando el reloj del sistema avanza en cada tick (useGameLoop) o se despacha una nueva acción en el instante now,  
-- Entonces el sistema filtra y elimina automáticamente de la memoria todas las instantáneas cuyo expiresAt < now, ocultando de forma sincronizada el UndoToast en el HUD cuando la última acción disponible acaba de expirar y liberando las referencias a previousState para evitar fugas de memoria.   
+- Entonces el sistema filtra y elimina automáticamente de la memoria todas las instantáneas cuyo expiresAt < now, ocultando de forma sincronizada el UndoToast en el HUD cuando la última acción disponible acaba de expirar y liberando las referencias a previousState para evitar fugas de memoria.  
+
+
+
+---
+
+## Deuda Registrada (no son User Stories nuevas)
+
+### DEV-01: Herramienta DEV de siembra de saldos y edición de estado
+
+**Dependencia:** pertenece a **US-12 CA-04** (*"las herramientas manuales de inyección/edición libre de JSON y cheats solo se montan y habilitan si `import.meta.env.DEV === true`"*). No crear una US paralela ni duplicar el criterio.
+
+**Motivo:** US-02 Prueba 3 exige un barrio Nivel 1 con 1000 🪙 y XP de Ayuntamiento en cero. El loop real (`tarea → monedas`) siembra +10 XP por casa en el camino, así que los números literales del criterio (50 → 80 XP) no se pueden reproducir sin sembrar saldo directamente.
+
+**Alcance mínimo cuando se tome:** función pura en `src/adapters/dev-tools/` que devuelva un `GameState` con la tesorería inyectada, acción espejo en `useGameStore` y botón visible sólo bajo `import.meta.env.DEV`. **Entra con test**: produce estado, no es un detalle de presentación.
+
+**Estado:** diferido por decisión explícita del usuario. No se inventa antes.
+
+### UI-01: Formalizar el sistema de diseño "Odyssey OS"
+
+**Motivo:** las directrices estéticas viven hoy sólo en la conversación. Sin documento vinculante, la próxima sesión —o el próximo agente— vuelve a `rounded-lg` e `indigo-600` por inercia.
+
+**Pendiente:** crear `UI_DESIGN.md` con geometría (radio cero, retícula ortogonal, cajas modulares), paleta (neutrales + `red-600` como único acento), tipografía (mono para datos y badges, black para títulos) y patrones de interacción (sin sombras difusas; sólo cambio de color de borde en hover, transiciones secas). Registrarlo en la tabla de precedencia de `GOVERNANCE.md` §1 y en el mapa de documentos de `AGENTS.md` §1.
+
+**Estado: CERRADA.** `UI_DESIGN.md` existe (**v2.2**), registrado como séptimo documento normativo en `GOVERNANCE.md` §1 y `DEC-015`, y en el mapa de `AGENTS.md` §1. Incluye §0.2 con las divergencias resueltas contra `DOMAIN_DESIGN.md` §7 (radio cero vs. "píldoras", ventanas adosadas vs. "paneles flotantes", `Ctrl+B`/`[` vs. `Tab`), §2 con la **metáfora de ventana zonificada** (lienzo negro, tres zonas perla `#ececec`, cinta negra por zona, opciones seleccionadas invertidas, divisores *inset* que no cortan el bloque), §6 con el presupuesto del acento (cinco puestos) y §7 con las nueve auditorías de `grep` que se corren antes de cerrar cualquier cambio en `src/ui/`.
+
+### UX-01: Las tareas viven sólo en la Pizarra Diaria (decisión, no bug)
+
+`ROADMAP.md` §3 define el Inspector Contextual como *"Tesorería, Plaza de Infraestructura (4 lotes + Museo), cuadras, mejoras de infraestructura (Niveles 1-4) y mudanzas"*: las tareas no están en esa lista. Las Pruebas 1 y 2 de US-04 ubican la tarea **únicamente** en el Drawer.
+
+**Consecuencia:** con el Drawer cerrado no hay indicador de tareas pendientes. Si se quiere un contador por barrio en el Inspector, entra como **mejora explícita con su propio criterio**, nunca como corrección silenciosa de un "bug". 
