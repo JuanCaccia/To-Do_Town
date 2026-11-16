@@ -700,10 +700,12 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **Alcance mínimo:** agregar una fila/sección en `ECONOMY.md` §2.1 con el cooldown y, si corresponde, la fórmula de la ventana `T` que hoy vive en `DOMAIN_DESIGN.md` §4. No es un cambio de código: el valor ya está en su lugar.
 
+**Estado: CERRADA (2026-11-15).** `ECONOMY.md` §2.1.1 declara la fórmula `T = (7/X)·24 + 12h + InerciaUrbana` (copiada de US-07 CA-01), remite el bono de Inercia Urbana a §4.1 en lugar de duplicarlo y fija el cooldown de frecuencia en 7 × 24 h exactas. Queda **una** precisión abierta, anotada ahí mismo: US-07 CA-01 no cuantifica el "margen de gracia" del switch `DAILY`. Esa definición es de US-07, no de este documento.
+
 ### VAL-01: Validación de entrada del hábito sin dueño explícito
 
 **Motivo:** dos User Stories tomaron la misma decisión por separado. US-02 CA-01 dejó el `title` vacío fuera del motor ("precondición del usuario, no regla del motor") y US-06 CA-01 dejó afuera el `count` entre 1 y 6 de `TIMES_PER_WEEK`. Ninguna de las dos quedó registrada como deuda, así que un tercer formulario puede decidir distinto.
 
 **Pendiente:** decidir una sola vez si la validación vive en el borde (formulario) o en `core` como guarda, y aplicarla retroactivamente a `createNeighborhood` y `createHabit`. **No se decide antes de que exista el formulario del Inspector** (US-06 Fase 4): sin el borde a la vista, la decisión se toma a ciegas.
 
-**Estado:** abierta, sin bloquear a nadie. 
+**Estado: CERRADA (2026-11-15) como `GOVERNANCE.md` DEC-017.** La validación de texto vive en el borde; `core` sólo valida reglas de negocio. No se toca `createNeighborhood` ni `createHabit`: la guarda ya existe en `HabitPlaza` (recorte, corte de vacío y envío deshabilitado) y el dominio queda protegido de lógica de presentación. Ningún test de dominio cambia. 

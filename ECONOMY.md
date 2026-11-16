@@ -23,6 +23,18 @@ Cada hábito activo genera monedas para su barrio según su porcentaje de eficie
 | **Crítico ($0.75T < t < T$)** | `33%` | **1.66 monedas/h** | **40 monedas/día** |
 | **Apagón ($t \ge T$)** | `0%` | **0.00 monedas/h** | **0 monedas/día** |
 
+#### 2.1.1. Ventana de Enfriamiento ($T$), Inercia Urbana y Cooldown de Frecuencia
+
+La eficiencia se mide contra una ventana $T$ (en horas) que corre desde el **último cumplimiento** del hábito (`lastCompletedAt`) o, si nunca se cumplió, desde su **creación** (`createdAt` — `GOVERNANCE.md` DEC-013). Un hábito recién creado nace **en Pleno** ($E = 1.0$).
+
+$$T = \left(\frac{7}{X} \times 24\right) + 12\text{h} + \text{InerciaUrbana}$$
+
+- $X$ es el `count` de la frecuencia declarada (`TIMES_PER_WEEK`, de 1 a 6).
+- Para `DAILY` no hay curva escalonada: la ventana es la del **switch diario** (`24 h + margen de gracia`), y el hábito pasa de $1.0$ a $0.0$ al vencer. El CA de origen (US-07 CA-01) no cuantifica ese margen de gracia: queda a definir en esa User Story.
+- `InerciaUrbana` es el bono por nivel de infraestructura del barrio, ya declarado en **§4.1**: `+0 h` (Nv.1), `+2 h` (Nv.2), `+4 h` (Nv.3), `+6 h` (Nv.4).
+
+**Cooldown de cambio de frecuencia:** editar la `frequency` de un hábito inicia un cooldown de **7 días** (`7 × 24 h` exactas, medido en milisegundos, no en jornadas operativas). Mientras corre, el motor rechaza cualquier nuevo cambio con `FREQUENCY_COOLDOWN_ACTIVE`; al cumplirse exactamente los 7 días el cambio vuelve a estar permitido. El cambio **no recalcula ni destruye** eficiencia: al ser derivada de `(lastCompletedAt, frequency, now)`, se recalcula por construcción (US-06 CA-03).
+
 ### 2.2. Recompensas por Tareas Únicas (Activas)
 Completar una tarea acredita monedas al barrio y suma puntos a la **Barra de Urbanización** (`100% = 1 Casa Nueva`):
 
