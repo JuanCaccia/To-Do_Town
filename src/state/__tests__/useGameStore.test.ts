@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { CryptoIdAdapter } from '../../adapters/id/CryptoIdAdapter';
 import { IndexedDBAdapter } from '../../adapters/storage/IndexedDBAdapter';
 import { createDayZeroState } from '../../core/entities/dayZero';
+import type { GameState } from '../../core/types';
 import { createGameStore } from '../useGameStore';
 
 const NOW = 1_700_000_000_000;
@@ -18,8 +19,25 @@ function resetIndexedDB(): void {
   globalThis.indexedDB = new IDBFactory();
 }
 
+/**
+ * Día Cero con el hábito semilla en Apagón. Estos tests aíslan la mecánica del
+ * store (eventos fantasma, rotación de jornada), no la liquidación pasiva de
+ * US-07: sin esto, cada tick devenga y muta el estado por diseño.
+ */
+function seedWithoutProduction(at: number): GameState {
+  const state = createDayZeroState(at);
+  const habit = state.habits['tutorial-habit-id'];
+
+  return habit === undefined
+    ? state
+    : {
+        ...state,
+        habits: { ...state.habits, 'tutorial-habit-id': { ...habit, lastCompletedAt: 0 } },
+      };
+}
+
 async function createHydratedStore(
-  options: { now?: () => number; hydrateAt?: number } = {},
+  options: { now?: () => number; hydrateAt?: number; seed?: GameState } = {},
 ) {
   const adapter = new IndexedDBAdapter();
   const store = createGameStore({
@@ -28,6 +46,10 @@ async function createHydratedStore(
     idPort: new CryptoIdAdapter(),
     now: options.now ?? (() => LATER),
   });
+
+  if (options.seed) {
+    await adapter.saveState(options.seed);
+  }
 
   await store.getState().hydrate(options.hydrateAt ?? NOW);
 
@@ -138,7 +160,7 @@ describe('useGameStore — Fase 4: orquestación sobre el motor puro', () => {
   });
 
   it('no muta nada ni emite eventos si el día operativo no cambió', async () => {
-    const { store, adapter } = await createHydratedStore();
+    const { store, adapter } = await createHydratedStore({ seed: seedWithoutProduction(NOW) });
     const before = store.getState().state;
     const eventsBefore = await adapter.listPendingEvents();
 
@@ -153,6 +175,7 @@ describe('useGameStore — Fase 4: orquestación sobre el motor puro', () => {
     const { store, adapter } = await createHydratedStore({
       now: () => current,
       hydrateAt: DAY_ONE_EVENING,
+      seed: seedWithoutProduction(DAY_ONE_EVENING),
     });
 
     await store.getState().completeTask(TUTORIAL_COMPLEX_TASK_ID);
@@ -311,5 +334,137 @@ describe('useGameStore — US-06 Fase 4: acciones de hábitos', () => {
 
     const events = await adapter.listPendingEvents();
     expect(events.map((event) => event.type)).toEqual(['HABIT_RETIRED_TO_MUSEUM']);
+  });
+});
+
+describe('useGameStore — US-07 CA-03: ninguna acción muta sin liquidar (DEC-019)', () => {
+  const HOUR = 3_600_000;
+  const EARNING_HABIT_ID = TUTORIAL_HABIT_ID;
+
+  /**
+   * Un hábito de 3×/semana en un barrio Nv.1 tiene `T = 68 h`. Si el último
+   * tick fue hace 40 h, la curva cruza su primer corte: 34 h al 100 % (170) más
+   * 6 h al 66 % (20) devengan 190 monedas exactas.
+   */
+  function seedWithEarningHabit(at: number): GameState {
+    const state = createDayZeroState(at);
+    const habit = state.habits[EARNING_HABIT_ID]!;
+    const neighborhood = state.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]!;
+
+    return {
+      ...state,
+      lastTickAt: at - 40 * HOUR,
+      neighborhoods: {
+        ...state.neighborhoods,
+        [TUTORIAL_NEIGHBORHOOD_ID]: {
+          ...neighborhood,
+          treasuryCoins: 0,
+          pendingCoinsRemainder: 0,
+        },
+      },
+      habits: {
+        ...state.habits,
+        [EARNING_HABIT_ID]: {
+          ...habit,
+          frequency: { type: 'TIMES_PER_WEEK', count: 3 },
+          createdAt: at - 30 * 24 * HOUR,
+          lastCompletedAt: at - 40 * HOUR,
+        },
+      },
+    };
+  }
+
+  /** Las 190 monedas de 40 h de producción, ya acreditadas y sin resto pendiente. */
+  function expectSettled(store: { getState(): { state: GameState | null } }): void {
+    const state = store.getState().state;
+    expect(state?.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]?.treasuryCoins).toBe(190);
+    expect(state?.lastTickAt).toBe(NOW);
+  }
+
+  it('liquida lo devengado antes de reescribir lastCompletedAt con el check-in', async () => {
+    const { store } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedWithEarningHabit(NOW),
+    });
+
+    await store.getState().completeHabitToday(EARNING_HABIT_ID);
+
+    expectSettled(store);
+  });
+
+  it('liquida antes de cualquier acción, también las que no tocan monedas', async () => {
+    const { store } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedWithEarningHabit(NOW),
+    });
+
+    await store.getState().createTask({
+      neighborhoodId: TUTORIAL_NEIGHBORHOOD_ID,
+      title: 'Comprar pintura',
+      weight: 'SIMPLE',
+    });
+
+    expectSettled(store);
+  });
+});
+
+describe('useGameStore — US-07 CA-04: piso seguro antes de cualquier mutación', () => {
+  beforeEach(resetIndexedDB);
+
+  const HOUR = 3_600_000;
+  /** 3×/semana en un barrio Nv.1: T = (7/3)·24 + 12 = 68 h. */
+  const BLACKOUT_HOURS = 70;
+
+  /**
+   * Hábito con checkpoint Nv.3 (piso 21 días) que ya superó su ventana y cayó
+   * en Apagón. La racha arranca muy por encima del piso para que el retroceso
+   * sea visible.
+   */
+  function seedInBlackout(at: number, streakDays: number): GameState {
+    const state = createDayZeroState(at);
+    const habit = state.habits[TUTORIAL_HABIT_ID]!;
+
+    return {
+      ...state,
+      lastTickAt: at - BLACKOUT_HOURS * HOUR,
+      habits: {
+        ...state.habits,
+        [TUTORIAL_HABIT_ID]: {
+          ...habit,
+          frequency: { type: 'TIMES_PER_WEEK', count: 3 },
+          createdAt: at - 30 * 24 * HOUR,
+          lastCompletedAt: at - BLACKOUT_HOURS * HOUR,
+          currentStreakDays: streakDays,
+          checkpointLevel: 3,
+        },
+      },
+    };
+  }
+
+  it('un check-in no resucita la racha de un hábito que ya cayó en Apagón', async () => {
+    const { store } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedInBlackout(NOW, 35),
+    });
+
+    const result = await store.getState().completeHabitToday(TUTORIAL_HABIT_ID);
+
+    expect(result.status).toBe('COMPLETED');
+    // Piso del checkpoint Nv.3 (21) más el día que acaba de cumplir: 22. Si la
+    // acción muta sin aplicar el piso, la racha resucita en 36.
+    expect(store.getState().state?.habits[TUTORIAL_HABIT_ID]?.currentStreakDays).toBe(22);
+  });
+
+  it('el tick que sólo decae lo declara, no lo disfraza de liquidación de monedas', async () => {
+    const { store, adapter } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedInBlackout(NOW, 35),
+    });
+
+    await store.getState().tick();
+
+    const events = await adapter.listPendingEvents();
+    expect(events.map((event) => event.type)).toEqual(['HABIT_DECAYED_TO_SAFE_FLOOR']);
+    expect(store.getState().state?.habits[TUTORIAL_HABIT_ID]?.currentStreakDays).toBe(21);
   });
 });

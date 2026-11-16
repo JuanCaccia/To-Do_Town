@@ -390,7 +390,7 @@ Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, ca
 
 - Resultado esperado: Al crearse, "Entrenar Fuerza" aparece en la Plaza de Infraestructura en Nv.1, con racha 0 d y ocupando 1 de 4 lotes; el hábito **nace en Pleno** (eficiencia derivada 1.0) porque la ventana de enfriamiento corre desde `createdAt` (DEC-013). Al marcar el check-in desde la Pizarra Diaria, la fila pasa a "Cumplido Hoy" y la racha sube a 1 d. Al intentar crear un 5to hábito en "GYM", la UI bloquea el alta indicando que los 4 lotes de la Plaza de Infraestructura están ocupados.  
 
-> **Corregida (2026-11-15):** esta prueba decía antes *"figura apagado (0%) … se enciende al 100% (5 🪙/h)"*. Contradecía su propio CA-01 y a DEC-013 (origen de la ventana: `createdAt`, no el primer check-in). La **eficiencia visible** y la **tasa de monedas por hora** son de **US-07 CA-01** (`getHabitEfficiency`): hasta que esa US exista, el HUD no las muestra y US-06 no las inventa. La Fase 4 de US-06 valida alta, racha, tope de lotes y check-in; no valida producción.
+> **Corregida (2026-11-15):** esta prueba decía antes *"figura apagado (0%) … se enciende al 100% (5 🪙/h)"*. Contradecía su propio CA-01 y a DEC-013 (origen de la ventana: `createdAt`, no el primer check-in). La **eficiencia visible** y la **tasa de monedas por hora** son de **US-07 CA-01** (`getHabitEfficiency`): hasta que esa US exista, el HUD no las muestra y US-06 no las inventa. La Fase 4 de US-06 valida alta, racha, tope de lotes y check-in; no valida producción. **US-07 ya cerró a dominio (2026-11-15) y el HUD sigue sin mostrarlas**: la presentación es ahora `UX-02`, no un pendiente implícito de esta prueba.
 
 
 **Prueba 2: Mudanza de distrito con confirmación**
@@ -407,7 +407,9 @@ Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, ca
 
 
 
-### US-07 (sistema): Producción Pasiva y Decaimiento con Piso Seguro: 
+### US-07 (sistema): Producción Pasiva y Decaimiento con Piso Seguro `[DONE]`
+> **Alcance cerrado: dominio.** Los 4 CAs están implementados y testeados (54 tests nuevos; 234 en el proyecto). **La US no declara Pruebas de Usuario ni Fase 4 propias**, así que no hay HUD que validar aquí: su única consecuencia visible —eficiencia y tasa de monedas por hora— es la deuda visual `UX-02`, que US-06 difirió explícitamente a esta US y que **no es un CA del motor**. Queda además una precisión abierta en `ECONOMY.md` §2.1.1: el "margen de gracia" del switch `DAILY` está fijado en 4 h como constante económica (`HABIT_DAILY_GRACE_HOURS`), **no** en `config.dayCycle.gracePeriodHours`.
+
 El sistema debe calcular la generación pasiva de monedas y reducir gradualmente la eficiencia del hábito según el tiempo transcurrido sin cumplirse de forma transparente, para que el usuario reciba ingresos constantes por su constancia y conserve su último piso seguro sin castigos destructivos si falla.  
 
 
@@ -428,13 +430,13 @@ El sistema debe calcular la generación pasiva de monedas y reducir gradualmente
 **CA-03: Liquidación Determinista de Monedas Pasivas por Intervalo (Delta t)**
 - Dado que la ciudad se encuentra activa (cityStatus === 'ACTIVE') y transcurre un intervalo de tiempo Delta t = now - lastTickAt,  
 - Cuando el motor ejecuta calculateTick(state, now),  
-- Entonces calcula para cada hábito activo las monedas generadas en cada tramo horario según su eficiencia (E) y el multiplicador del barrio (M_barrio = 0.5 si reactivationPenaltyUntil > now, o 1.0 en caso normal) a razón de 5.00 monedas/hora al 100% (120/día), 3.33 monedas/hora al 66% (80/día), 1.66 monedas/hora al 33% (40/día) y 0 monedas/hora al 0%, acreditando el total en treasuryCoins de su barrio y actualizando lastTickAt = now.   
+- Entonces calcula para cada hábito activo las monedas generadas en cada tramo horario según su eficiencia (E) y el multiplicador del barrio (M_barrio = 0.5 si reactivationPenaltyUntil > now, o 1.0 en caso normal) a razón de 5.00 monedas/hora al 100% (120/día), 3.33 monedas/hora al 66% (80/día), 1.66 monedas/hora al 33% (40/día) y 0 monedas/hora al 0%, acreditando el total en treasuryCoins de su barrio a través del acumulador de resto por barrio (`ECONOMY.md` §2.1.2) y adelantando lastTickAt = now **sólo si la liquidación o alguna regla de dominio mutó el estado** (DEC-018): un latido técnico sin mutación devuelve el mismo `GameState` y no emite evento.   
 
 
 **CA-04: Protección de Piso Seguro (Retroceso al Checkpoint en Caso de Apagón)**
 - Dado que un hábito activo supera su ventana máxima de enfriamiento sin renovarse (t >= T) y cae en Apagón (eficiencia derivada 0.0),  
 - Cuando el motor procesa la caída a 0% de eficiencia,  
-- Entonces el hábito detiene su producción de monedas pero no pierde su edificio ni vuelve a cero absoluto: conserva intacto su checkpointLevel alcanzado (1, 2, 3, 4 o 5) y retrocede su currentStreakDays únicamente hasta el piso de días de ese último Checkpoint seguro (0/1 en Nv.1, 7 en Nv.2, 21 en Nv.3, 50 en Nv.4, o 100 en Nv.5).   
+- Entonces el hábito detiene su producción de monedas pero no pierde su edificio ni vuelve a cero absoluto: conserva intacto su checkpointLevel alcanzado (1, 2, 3, 4 o 5) y retrocede su currentStreakDays únicamente hasta el piso de días de ese último Checkpoint seguro (0/1 en Nv.1, 7 en Nv.2, 21 en Nv.3, 50 en Nv.4, o 100 en Nv.5). (La caída a Apagón es una **mutación de negocio**, no un latido técnico: emite su propio evento. **No necesita marca persistida** — el retroceso al piso es idempotente, así que una segunda aplicación deja el estado idéntico y DEC-018 lo descarta por igualdad de estado.)   
 
 
 
@@ -693,6 +695,16 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 `ROADMAP.md` §3 define el Inspector Contextual como *"Tesorería, Plaza de Infraestructura (4 lotes + Museo), cuadras, mejoras de infraestructura (Niveles 1-4) y mudanzas"*: las tareas no están en esa lista. Las Pruebas 1 y 2 de US-04 ubican la tarea **únicamente** en el Drawer.
 
 **Consecuencia:** con el Drawer cerrado no hay indicador de tareas pendientes. Si se quiere un contador por barrio en el Inspector, entra como **mejora explícita con su propio criterio**, nunca como corrección silenciosa de un "bug".
+
+### UX-02: Eficiencia y tasa de monedas visibles en el HUD
+
+**Motivo:** US-07 cerró a nivel dominio y el motor ya deriva la eficiencia (`getHabitEfficiency`, `getHabitEfficiencyRatio`) y sabe cuánto rinde (`HABIT_COINS_PER_HOUR × ratio`), pero **nada lo muestra**. US-06 difirió esa presentación a US-07 CA-01 (ver la corrección de su Prueba 1) y US-07 no declara Pruebas de Usuario propias, así que la deuda quedó sin dueña documental.
+
+**Pendiente:** decidir **dónde** vive el indicador (Inspector del barrio vs. Pizarra Diaria), **qué** se muestra exactamente (`%` de eficiencia y `🪙/h` resultante) y **cuándo** se recalcula. La eficiencia es **derivada**: se lee en el instante de render desde `getHabitEfficiency(habit, neighborhood.infrastructureLevel, now)`, nunca se persiste (DEC-005) y nunca se reimplementa en `src/ui`. La curva y sus cortes son de `src/core/rules/habitEfficiency.ts`; la presentación no los duplica.
+
+**Fuera de alcance:** el encendido de ventanas del edificio isométrico expresa la **misma** eficiencia en el lienzo (`DOMAIN_DESIGN.md` §6). Si se quiere, es un criterio visual aparte; no entra por arrastre en esta deuda.
+
+**Estado:** registrada. Espera su propio carril visual; **no** se implementa como corrección silenciosa de un "bug" de US-06.
 
 ### DOC-01: `ECONOMY.md` no declara el cooldown de cambio de frecuencia
 

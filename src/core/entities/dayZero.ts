@@ -45,6 +45,7 @@ export function createDayZeroState(now: TimestampMs): GameState {
         architecturalThemeId: 'CLASSIC_DIORAMA',
         infrastructureLevel: 1,
         treasuryCoins: 500,
+        pendingCoinsRemainder: 0,
         urbanizationProgress: 50,
         dailyTasksCompletedCount: 0,
         lastOperationalDay: operationalDay,

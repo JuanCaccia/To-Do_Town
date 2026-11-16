@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { createDayZeroState } from '../../entities/dayZero';
+import { createHabit } from '../../entities/habit';
+import { createNeighborhood } from '../../entities/neighborhood';
 import type { EntityId, GameState, Neighborhood } from '../../types';
 import { calculateTick } from '../calculateTick';
 
 const TUTORIAL = 'tutorial-neighborhood-id';
 const GYM = 'gym-neighborhood-id';
+const PRODUCING_HABIT = 'producing-habit-id';
+
+/** Un mes antes: deja al hábito semilla en Apagón para aislar el reciclaje. */
+const LONG_AGO = new Date(2025, 11, 1, 0, 0).getTime();
 
 /** Construye un timestamp desde una fecha LOCAL explícita (mes 1-12). */
 function atLocal(year: number, month: number, day: number, hour: number, minute = 0): number {
@@ -27,9 +33,19 @@ function mustNeighborhood(state: GameState, id: EntityId): Neighborhood {
 function seedDayOfWork(): GameState {
   const state = createDayZeroState(EVENING);
   const tutorial = mustNeighborhood(state, TUTORIAL);
+  const tutorialHabit = state.habits['tutorial-habit-id'];
 
   return {
     ...state,
+    // El hábito semilla queda en Apagón: estos tests aíslan el reciclaje de
+    // jornada, no la liquidación pasiva (US-07). Sin esto, cada tick devenga.
+    habits:
+      tutorialHabit === undefined
+        ? state.habits
+        : {
+            ...state.habits,
+            'tutorial-habit-id': { ...tutorialHabit, lastCompletedAt: LONG_AGO },
+          },
     globals: {
       ...state.globals,
       aqueduct: { ...state.globals.aqueduct, dailyLiters: 1.5 },
@@ -69,6 +85,61 @@ function seedDayOfWork(): GameState {
   };
 }
 
+describe('calculateTick — US-07 CA-03: liquidación pasiva dentro del mismo tick', () => {
+  /** Ciudad con un hábito diario que produce toda la noche y una tarea sin terminar. */
+  function seedProductiveCity(): GameState {
+    const base = createNeighborhood(createDayZeroState(EVENING), {
+      id: GYM,
+      name: 'GYM',
+      paletteId: 'MINT_MORNING',
+    });
+    const created = createHabit(
+      base,
+      {
+        id: PRODUCING_HABIT,
+        neighborhoodId: GYM,
+        title: 'Entrenar Fuerza',
+        frequency: { type: 'DAILY' },
+      },
+      EVENING,
+    );
+
+    if (created.status !== 'CREATED') throw new Error('setup: el alta del hábito falló');
+
+    return {
+      ...created.state,
+      habits: {
+        ...created.state.habits,
+        [PRODUCING_HABIT]: {
+          ...created.state.habits[PRODUCING_HABIT]!,
+          lastCompletedAt: EVENING,
+        },
+      },
+      tasks: {
+        ...created.state.tasks,
+        'overnight-task': {
+          neighborhoodId: GYM,
+          title: 'Activa de anoche',
+          weight: 'STANDARD',
+          boardStatus: 'IN_CONSTRUCTION',
+          createdAt: EVENING,
+          completedAt: null,
+        },
+      },
+    };
+  }
+
+  it('liquida la producción devengada y recicla la jornada en el mismo resultado', () => {
+    const next = calculateTick(seedProductiveCity(), NEXT_MORNING);
+
+    // 7 h de un hábito DAILY en Pleno: 7 × 5 monedas.
+    expect(next.neighborhoods[GYM]?.treasuryCoins).toBe(35);
+    expect(next.lastTickAt).toBe(NEXT_MORNING);
+    expect(next.lastOperationalDay).toBe('2026-01-16');
+    expect(next.tasks['overnight-task']?.boardStatus).toBe('MASTER_PLAN');
+  });
+});
+
 describe('calculateTick — US-05 CA-02: transición de jornada y reciclaje', () => {
   it('no muta el estado si el día operativo no cambió', () => {
     const state = seedDayOfWork();
@@ -106,7 +177,7 @@ describe('calculateTick — US-05 CA-02: transición de jornada y reciclaje', ()
     expect(next.globals.townHall).toEqual(state.globals.townHall);
   });
 
-  it('no adelanta lastTickAt: la producción pasiva queda impaga para US-07 (DEC-016)', () => {
+  it('no adelanta lastTickAt cuando no hay producción que liquidar (DEC-018)', () => {
     const state = seedDayOfWork();
 
     expect(calculateTick(state, NEXT_MORNING).lastTickAt).toBe(state.lastTickAt);

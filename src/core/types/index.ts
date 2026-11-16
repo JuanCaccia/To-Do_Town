@@ -75,6 +75,8 @@ export interface Neighborhood {
   architecturalThemeId: ArchitecturalThemeId;
   infrastructureLevel: 1 | 2 | 3 | 4;
   treasuryCoins: number;
+  /** ECONOMY §2.1.2: fracción devengada que todavía no llegó a una moneda entera. */
+  pendingCoinsRemainder: number;
   urbanizationProgress: number;
   dailyTasksCompletedCount: number;
   lastOperationalDay: string;

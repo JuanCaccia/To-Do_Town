@@ -16,6 +16,7 @@ export function createNeighborhood(state: GameState, input: NewNeighborhoodInput
     architecturalThemeId: DEFAULT_ARCHITECTURAL_THEME_ID,
     infrastructureLevel: 1,
     treasuryCoins: 0,
+    pendingCoinsRemainder: 0,
     urbanizationProgress: 0,
     dailyTasksCompletedCount: 0,
     lastOperationalDay: state.lastOperationalDay,

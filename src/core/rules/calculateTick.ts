@@ -1,30 +1,35 @@
 import type { GameState, Neighborhood, OneOffTask, TimestampMs } from '../types';
 import { getOperationalDay } from './dayCycle';
+import { applySafeFloor } from './habitDecay';
+import { settlePassiveProduction } from './passiveProduction';
 
 /**
- * Orquestador de jornada (DEC-016). Detecta el cambio de día operativo y
- * recicla lo que no sobrevive la noche.
+ * Orquestador de producción pasiva, piso seguro y jornada (DEC-016, DEC-018).
  *
- * No liquida producción pasiva: el delta `now - lastTickAt` queda impago a
- * propósito. US-07 CA-03 extiende esta misma función con esa liquidación y es
- * la única dueña de adelantar `lastTickAt`.
+ * El orden importa: liquidar primero (cobra lo devengado con la eficiencia que
+ * regía en cada tramo), después aplicar la caída a Apagón —que adelanta
+ * `lastTickAt`— y recién entonces reciclar la jornada. Si ninguna regla mutó,
+ * devuelve la misma referencia y `lastTickAt` no se adelanta: el latido técnico
+ * no es evento de negocio.
  */
 export function calculateTick(state: GameState, now: TimestampMs): GameState {
+  const settled = settlePassiveProduction(state, now);
+  const decayed = applySafeFloor(settled, now);
   const operationalDay = getOperationalDay(now, state.config.dayCycle);
 
-  if (operationalDay === state.lastOperationalDay) {
-    return state;
+  if (operationalDay === decayed.lastOperationalDay) {
+    return decayed;
   }
 
   return {
-    ...state,
+    ...decayed,
     lastOperationalDay: operationalDay,
     globals: {
-      ...state.globals,
-      aqueduct: { ...state.globals.aqueduct, dailyLiters: 0 },
+      ...decayed.globals,
+      aqueduct: { ...decayed.globals.aqueduct, dailyLiters: 0 },
     },
-    neighborhoods: recycleNeighborhoods(state.neighborhoods, operationalDay),
-    tasks: recycleTasks(state.tasks),
+    neighborhoods: recycleNeighborhoods(decayed.neighborhoods, operationalDay),
+    tasks: recycleTasks(decayed.tasks),
   };
 }
 

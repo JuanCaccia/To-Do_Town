@@ -62,6 +62,56 @@ export const HABIT_MUSEUM_RETIREMENT_TOWN_HALL_XP = 300;
 /** BACKLOG US-06 CA-03: cooldown entre cambios de frecuencia de un hábito (ver DOC-01). */
 export const HABIT_FREQUENCY_CHANGE_COOLDOWN_MS = 7 * 24 * 3_600_000;
 
+/**
+ * Horas de un día calendario. Constante de **calendario**, no de hábito: no la
+ * mueve ningún balance, por eso la comparten la base semanal y el switch DAILY.
+ */
+export const HOURS_PER_DAY = 24;
+
+/**
+ * ECONOMY §2.1.1: ventana de enfriamiento `T` de un hábito, en horas.
+ *
+ * Base semanal: `(7 / X) * HOURS_PER_DAY`. Switch `DAILY`: un día de período más
+ * la gracia. El margen de gracia del switch es una **duración económica fija** y
+ * no `config.dayCycle.gracePeriodHours`: aquel desplaza el reloj para decidir la
+ * jornada operativa y es configurable por el usuario. Ver ECONOMY §2.1.1.
+ */
+export const HABIT_DAILY_GRACE_HOURS = 4;
+export const HABIT_WEEKLY_GRACE_HOURS = 12;
+
+/** ECONOMY §4.1: bono de Inercia Urbana por nivel de infraestructura del barrio. */
+export const INFRASTRUCTURE_INERTIA_HOURS: Record<1 | 2 | 3 | 4, number> = {
+  1: 0,
+  2: 2,
+  3: 4,
+  4: 6,
+};
+
+/**
+ * ECONOMY §2.1: valores canónicos de eficiencia como **fracciones exactas**.
+ * La liquidación los consume en forma racional (`numerador / denominador`) para
+ * que un total matemáticamente entero no pierda una moneda por coma flotante.
+ * `0.66` / `0.33` son presentación redondeada — GOVERNANCE DEC-006.
+ */
+export const HABIT_EFFICIENCY_RATIOS = {
+  full: { numerator: 1, denominator: 1 },
+  worn: { numerator: 2, denominator: 3 },
+  critical: { numerator: 1, denominator: 3 },
+  blackout: { numerator: 0, denominator: 1 },
+} as const;
+
+/** ECONOMY §2.1: cortes de la curva, como fracción de la ventana `T`. */
+export const HABIT_EFFICIENCY_BREAKPOINTS = {
+  worn: 0.5,
+  critical: 0.75,
+} as const;
+
+/** ECONOMY §1: 1 hora de hábito activo al 100% = 5 monedas (120 al día). */
+export const HABIT_COINS_PER_HOUR = 5;
+
+/** ECONOMY §2.1: `M_barrio` durante el Arranque de Motores (US-11). */
+export const REACTIVATION_PENALTY_MULTIPLIER = 0.5;
+
 export interface TaskFatigueModel {
   localOptimalQuota: number;
   localFatigueQuota: number;

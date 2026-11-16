@@ -32,6 +32,8 @@ import type {
   TaskWeight,
   TimestampMs,
 } from '../core/types';
+import { settlePassiveProduction } from '../core/rules/passiveProduction';
+import { applySafeFloor } from '../core/rules/habitDecay';
 import { hydrateGameState } from './hydrateGameState';
 
 export interface GameStoreDeps {
@@ -76,9 +78,22 @@ export interface GameStoreState {
   retireHabitToMuseum(habitId: EntityId): Promise<HabitRetirementResult>;
 }
 
+/**
+ * Ids de los hábitos cuya racha retrocedió entre dos snapshots.
+ *
+ * La caída a Apagón no deja marca persistida (DEC-018): la única evidencia es
+ * la diferencia de estado. Por eso el tipo del evento se deriva de lo que
+ * realmente cambió y no de una bandera que alguien tenga que mantener.
+ */
+function habitsRolledBackToFloor(previous: GameState, next: GameState): EntityId[] {
+  return Object.keys(next.habits).filter(
+    (id) => next.habits[id]?.currentStreakDays !== previous.habits[id]?.currentStreakDays,
+  );
+}
+
 export function createGameStore(deps: GameStoreDeps) {
   return create<GameStoreState>()((set, get) => {
-    function requireState(): GameState {
+    function stateOrThrow(): GameState {
       const current = get().state;
 
       if (current === null) {
@@ -86,6 +101,29 @@ export function createGameStore(deps: GameStoreDeps) {
       }
 
       return current;
+    }
+
+    /**
+     * DEC-019: ninguna acción muta sin liquidar antes lo que el paso del tiempo
+     * devengó **o castigó**: producción pasiva y piso seguro, en ese orden.
+     *
+     * Es el único punto de lectura del estado para las acciones, así que el
+     * invariante no depende de que alguien se acuerde de liquidar en cada una.
+     * El orden es el mismo que el de `calculateTick` y tampoco es casual:
+     * `applySafeFloor` adelanta `lastTickAt` cuando muta, así que si corriera
+     * primero dejaría el intervalo sin cobrar.
+     *
+     * Devuelve el estado ya liquidado sin commitearlo: la acción lo pliega en su
+     * propio commit, de modo que el estado y el evento son atómicos y una acción
+     * no genera un evento de liquidación extra. Si la acción se rechaza, la
+     * liquidación simplemente se difiere — es determinista sobre `lastTickAt`,
+     * así que no se pierde nada.
+     */
+    function requireSettledState(): GameState {
+      const current = stateOrThrow();
+      const now = deps.now();
+
+      return applySafeFloor(settlePassiveProduction(current, now), now);
     }
 
     async function commit(next: GameState, type: string, payload: Record<string, unknown>) {
@@ -107,23 +145,36 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async tick() {
-        const current = requireState();
+        const current = stateOrThrow();
         const next = calculateTick(current, deps.now());
 
-        // The rule returns the same reference while the operational day holds,
-        // so a minute-by-minute loop never writes a phantom event.
+        // DEC-018: si ninguna regla mutó, no hay evento que escribir.
         if (next === current) {
           return;
         }
 
-        await commit(next, 'OPERATIONAL_DAY_ROLLED_OVER', {
-          operationalDay: next.lastOperationalDay,
-        });
+        // Un tick puede liquidar producción, rotar la jornada o las dos cosas.
+        // El evento debe decir lo que realmente pasó, no lo que suele pasar.
+        if (next.lastOperationalDay !== current.lastOperationalDay) {
+          await commit(next, 'OPERATIONAL_DAY_ROLLED_OVER', {
+            operationalDay: next.lastOperationalDay,
+          });
+          return;
+        }
+
+        const decayed = habitsRolledBackToFloor(current, next);
+
+        if (decayed.length > 0) {
+          await commit(next, 'HABIT_DECAYED_TO_SAFE_FLOOR', { habitIds: decayed });
+          return;
+        }
+
+        await commit(next, 'PASSIVE_PRODUCTION_SETTLED', { lastTickAt: next.lastTickAt });
       },
 
       async createNeighborhood(input) {
         const neighborhoodId = deps.idPort.generateId();
-        const next = createNeighborhood(requireState(), { ...input, id: neighborhoodId });
+        const next = createNeighborhood(requireSettledState(), { ...input, id: neighborhoodId });
 
         await commit(next, 'NEIGHBORHOOD_CREATED', {
           neighborhoodId,
@@ -135,7 +186,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async upgradeInfrastructure(neighborhoodId) {
-        const result = upgradeNeighborhoodInfrastructure(requireState(), neighborhoodId);
+        const result = upgradeNeighborhoodInfrastructure(requireSettledState(), neighborhoodId);
 
         if (result.status === 'REJECTED') {
           return result;
@@ -150,7 +201,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async levelBlock(neighborhoodId, position) {
-        const result = levelNeighborhoodBlock(requireState(), neighborhoodId, position);
+        const result = levelNeighborhoodBlock(requireSettledState(), neighborhoodId, position);
 
         if (result.status === 'REJECTED') {
           return result;
@@ -162,7 +213,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async purchaseDecoration(neighborhoodId, kind) {
-        const result = purchaseNeighborhoodDecoration(requireState(), {
+        const result = purchaseNeighborhoodDecoration(requireSettledState(), {
           neighborhoodId,
           decorationId: deps.idPort.generateId(),
           kind,
@@ -179,7 +230,7 @@ export function createGameStore(deps: GameStoreDeps) {
 
       async createTask(input) {
         const taskId = deps.idPort.generateId();
-        const next = createTask(requireState(), { ...input, id: taskId }, deps.now());
+        const next = createTask(requireSettledState(), { ...input, id: taskId }, deps.now());
 
         await commit(next, 'TASK_CREATED', {
           taskId,
@@ -191,7 +242,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async moveTask(taskId, target) {
-        const current = requireState();
+        const current = requireSettledState();
         const next = moveTask(current, taskId, target);
 
         // The pure rule returns the same reference when it refuses, so a no-op
@@ -204,7 +255,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async completeTask(taskId) {
-        const current = requireState();
+        const current = requireSettledState();
         const next = completeTask(current, taskId, deps.now());
 
         if (next === current) {
@@ -216,7 +267,7 @@ export function createGameStore(deps: GameStoreDeps) {
 
       async createHabit(input) {
         const habitId = deps.idPort.generateId();
-        const result = createHabit(requireState(), { ...input, id: habitId }, deps.now());
+        const result = createHabit(requireSettledState(), { ...input, id: habitId }, deps.now());
 
         if (result.status === 'REJECTED') {
           return result;
@@ -232,7 +283,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async completeHabitToday(habitId) {
-        const result = completeHabit(requireState(), habitId, deps.now());
+        const result = completeHabit(requireSettledState(), habitId, deps.now());
 
         if (result.status === 'REJECTED') {
           return result;
@@ -244,7 +295,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async changeHabitFrequency(habitId, frequency) {
-        const result = changeHabitFrequency(requireState(), habitId, frequency, deps.now());
+        const result = changeHabitFrequency(requireSettledState(), habitId, frequency, deps.now());
 
         if (result.status === 'REJECTED') {
           return result;
@@ -256,7 +307,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async moveHabit(habitId, targetNeighborhoodId) {
-        const result = moveHabit(requireState(), habitId, targetNeighborhoodId);
+        const result = moveHabit(requireSettledState(), habitId, targetNeighborhoodId);
 
         if (result.status === 'REJECTED') {
           return result;
@@ -268,7 +319,7 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async retireHabitToMuseum(habitId) {
-        const result = retireHabit(requireState(), habitId, deps.now());
+        const result = retireHabit(requireSettledState(), habitId, deps.now());
 
         if (result.status === 'REJECTED') {
           return result;

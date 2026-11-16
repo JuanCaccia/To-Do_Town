@@ -30,10 +30,20 @@ La eficiencia se mide contra una ventana $T$ (en horas) que corre desde el **úl
 $$T = \left(\frac{7}{X} \times 24\right) + 12\text{h} + \text{InerciaUrbana}$$
 
 - $X$ es el `count` de la frecuencia declarada (`TIMES_PER_WEEK`, de 1 a 6).
-- Para `DAILY` no hay curva escalonada: la ventana es la del **switch diario** (`24 h + margen de gracia`), y el hábito pasa de $1.0$ a $0.0$ al vencer. El CA de origen (US-07 CA-01) no cuantifica ese margen de gracia: queda a definir en esa User Story.
+- Para `DAILY` no hay curva escalonada: la ventana es la del **switch diario**, $T = 24\text{h} + 4\text{h} + \text{InerciaUrbana}$, y el hábito pasa de $1.0$ a $0.0$ al vencer. El margen de gracia del switch diario queda fijado en **`4 h`** (US-07 CA-01, decisión del 2026-11-15) como `HABIT_DAILY_GRACE_HOURS` en `economyConstants.ts`. Resultado: $T = 28$ h en Nv.1 y $34$ h en Nv.4.
+- **El margen de gracia del switch diario NO es `config.dayCycle.gracePeriodHours`.** Ese último (US-05 CA-01) desplaza el reloj para decidir la jornada operativa y es **configurable por el usuario**; este margen es una duración económica **fija** medida desde `lastCompletedAt`. La coincidencia numérica en `4 h` es deliberada; compartir la constante acoplaría el decaimiento de los hábitos a una preferencia de calendario.
 - `InerciaUrbana` es el bono por nivel de infraestructura del barrio, ya declarado en **§4.1**: `+0 h` (Nv.1), `+2 h` (Nv.2), `+4 h` (Nv.3), `+6 h` (Nv.4).
 
 **Cooldown de cambio de frecuencia:** editar la `frequency` de un hábito inicia un cooldown de **7 días** (`7 × 24 h` exactas, medido en milisegundos, no en jornadas operativas). Mientras corre, el motor rechaza cualquier nuevo cambio con `FREQUENCY_COOLDOWN_ACTIVE`; al cumplirse exactamente los 7 días el cambio vuelve a estar permitido. El cambio **no recalcula ni destruye** eficiencia: al ser derivada de `(lastCompletedAt, frequency, now)`, se recalcula por construcción (US-06 CA-03).
+
+### 2.1.2. Precisión Monetaria: Acumulador de Resto
+
+La liquidación pasiva produce fracciones: `5.00 monedas/h` dividido en ticks de un minuto da `0.083` monedas por tick. **Queda prohibido truncar la liquidación a monedas enteras**: el valor no cobrado se pierde y la economía deja de cumplir §2.1.
+
+- **Dónde vive el resto:** un acumulador por **barrio** (`Neighborhood.pendingCoinsRemainder`), no por hábito. La tesorería es el destino del crédito y existe mientras exista el barrio; un acumulador por hábito se perdería al mudarlo de distrito (US-06 CA-04) o al retirarlo al Museo (US-06 CA-05), porque ninguna de las dos operaciones mueve ni liquida monedas.
+- **Regla de acreditación:** en cada liquidación las fracciones devengadas se **suman** al acumulador del barrio. Cuando `pendingCoinsRemainder >= 1`, se acredita `floor(pendingCoinsRemainder)` en `treasuryCoins` y el acumulador conserva la parte fraccionaria exacta.
+- **Invariante:** `treasuryCoins` nunca recibe fracciones; el acumulador nunca se redondea hacia arriba ni se descarta. Un barrio con hábitos activos devengando siempre converge a cobrar la tasa completa de §2.1.
+- **Precisión:** la del `number` de JavaScript. No se introduce tipo decimal ni librería externa (`AGENTS.md` §3, pureza de `src/core`).
 
 ### 2.2. Recompensas por Tareas Únicas (Activas)
 Completar una tarea acredita monedas al barrio y suma puntos a la **Barra de Urbanización** (`100% = 1 Casa Nueva`):

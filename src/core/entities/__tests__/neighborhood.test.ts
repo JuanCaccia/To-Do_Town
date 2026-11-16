@@ -18,6 +18,7 @@ describe('createNeighborhood — US-02 CA-01: barrio personalizado con cuadra in
       architecturalThemeId: 'CLASSIC_DIORAMA',
       infrastructureLevel: 1,
       treasuryCoins: 0,
+      pendingCoinsRemainder: 0,
       urbanizationProgress: 0,
       dailyTasksCompletedCount: 0,
       lastOperationalDay: state.lastOperationalDay,
