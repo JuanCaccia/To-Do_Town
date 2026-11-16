@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
-import { BUTTON_OUTLINE_ON_DARK, BUTTON_PRIMARY_ON_DARK } from './primitives';
+import {
+  BUTTON_OUTLINE_ON_DARK,
+  BUTTON_PRIMARY_ON_DARK,
+  CHIP_ON_DARK_ACTIVE,
+  CHIP_ON_DARK_IDLE,
+} from './primitives';
 
 const MILLISECONDS_PER_MINUTE = 60_000;
 
@@ -38,6 +43,10 @@ export function FocusTimer({ state }: FocusTimerProps) {
   const preset = presets.find((candidate) => candidate.id === presetId);
   const targetMs = (preset?.workMinutes ?? 0) * MILLISECONDS_PER_MINUTE;
   const elapsedMinutes = Math.floor(elapsedMs / MILLISECONDS_PER_MINUTE);
+  const elapsedSeconds = Math.floor(elapsedMs / 1_000);
+  const clockMinutes = Math.floor(elapsedSeconds / 60);
+  const clockSeconds = elapsedSeconds % 60;
+  const clock = `${String(clockMinutes).padStart(2, '0')}:${String(clockSeconds).padStart(2, '0')}`;
   const canInterrupt = elapsedMinutes >= MINIMUM_INTERRUPTED_MINUTES;
 
   useEffect(() => {
@@ -86,7 +95,7 @@ export function FocusTimer({ state }: FocusTimerProps) {
             <button
               key={id}
               type="button"
-              className={id === neighborhoodId ? BUTTON_PRIMARY_ON_DARK : BUTTON_OUTLINE_ON_DARK}
+              className={id === neighborhoodId ? CHIP_ON_DARK_ACTIVE : CHIP_ON_DARK_IDLE}
               aria-pressed={id === neighborhoodId}
               onClick={() => setNeighborhoodId(id)}
             >
@@ -100,9 +109,7 @@ export function FocusTimer({ state }: FocusTimerProps) {
             <button
               key={candidate.id}
               type="button"
-              className={
-                candidate.id === presetId ? BUTTON_PRIMARY_ON_DARK : BUTTON_OUTLINE_ON_DARK
-              }
+              className={candidate.id === presetId ? CHIP_ON_DARK_ACTIVE : CHIP_ON_DARK_IDLE}
               aria-pressed={candidate.id === presetId}
               onClick={() => setPresetId(candidate.id)}
             >
@@ -149,9 +156,9 @@ export function FocusTimer({ state }: FocusTimerProps) {
   return (
     <div className="flex items-center gap-1.5">
       <span className="font-mono text-base font-bold leading-none text-pearl">
-        {elapsedMinutes}
-        <span className="ml-1 text-[10px] font-normal uppercase tracking-widest text-neutral-400">
-          / {preset?.workMinutes ?? 0} MIN
+        {clock}
+        <span className="ml-0.5 text-[10px] font-normal uppercase tracking-widest text-neutral-400">
+          /{preset?.workMinutes ?? 0}
         </span>
       </span>
       <button

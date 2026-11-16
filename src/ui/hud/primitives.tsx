@@ -117,6 +117,17 @@ export const BUTTON_OUTLINE_ON_DARK =
 export const INPUT_ON_DARK =
   'rounded-none border border-neutral-400 bg-transparent px-2 py-2 font-mono text-base font-bold leading-none text-pearl placeholder:text-neutral-500 focus:border-pearl focus:outline-none';
 
+/**
+ * Option chip on the black chrome. Selection is carried by the inverted block,
+ * never by a third grey, and the active one has no hover: a toggle that inverts
+ * back under the pointer stops reading as selected.
+ */
+export const CHIP_ON_DARK_ACTIVE =
+  'rounded-none border border-pearl bg-pearl px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-black transition-colors';
+
+export const CHIP_ON_DARK_IDLE =
+  'rounded-none border border-neutral-600 px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-neutral-300 transition-colors hover:border-pearl hover:text-pearl';
+
 /** Primary action on a pearl surface: a solid black block, the maximum contrast available there. */export const BUTTON_PRIMARY_ON_LIGHT =
   'rounded-none border border-black bg-black px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-400 disabled:bg-neutral-400 disabled:text-neutral-600';
 
