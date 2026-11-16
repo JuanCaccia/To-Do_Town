@@ -1,5 +1,4 @@
 import type { DecorationKind, HabitCheckpointLevel, TaskWeight } from '../types';
-
 export interface InfrastructureUpgradeTier {
   baseCost: number;
   costPerLeveledBlock: number;
@@ -58,6 +57,50 @@ export const HABIT_CHECKPOINTS: readonly HabitCheckpointTier[] = [
 
 /** ECONOMY §5.1: retiro con honores de un hábito Nivel 5 al Museo del barrio. */
 export const HABIT_MUSEUM_RETIREMENT_TOWN_HALL_XP = 300;
+
+/** DOMAIN_DESIGN §3.3: descanso corto sugerido para un preset nuevo, `W/5` (editable). */
+export const POMODORO_SHORT_BREAK_DIVISOR = 5;
+
+/** DOMAIN_DESIGN §3.3: bloques por defecto antes del descanso largo. */
+export const POMODORO_DEFAULT_CYCLES_BEFORE_LONG_BREAK = 4;
+
+/**
+ * ECONOMY §5.1: umbrales de evolución de los edificios cívicos, medidos sobre el
+ * acumulado **histórico** (nunca sobre el del día, que se reinicia en el corte).
+ */
+/**
+ * ECONOMY §5.1: escalón mínimo para alcanzar cada nivel de un edificio cívico.
+ * `min` se mide siempre sobre el acumulado **histórico**, nunca sobre el del día
+ * (el del día se reinicia en el corte de jornada).
+ */
+export interface LevelThreshold {
+  level: 1 | 2 | 3 | 4 | 5;
+  min: number;
+}
+
+export const TOWN_HALL_LEVEL_THRESHOLDS: readonly LevelThreshold[] = [
+  { level: 1, min: 0 },
+  { level: 2, min: 100 },
+  { level: 3, min: 350 },
+  { level: 4, min: 1_000 },
+  { level: 5, min: 2_500 },
+];
+
+export const AQUEDUCT_LEVEL_THRESHOLDS: readonly LevelThreshold[] = [
+  { level: 1, min: 0 },
+  { level: 2, min: 15 },
+  { level: 3, min: 60 },
+  { level: 4, min: 200 },
+  { level: 5, min: 500 },
+];
+
+export const LIBRARY_LEVEL_THRESHOLDS: readonly LevelThreshold[] = [
+  { level: 1, min: 0 },
+  { level: 2, min: 100 },
+  { level: 3, min: 500 },
+  { level: 4, min: 1_500 },
+  { level: 5, min: 5_000 },
+];
 
 /** BACKLOG US-06 CA-03: cooldown entre cambios de frecuencia de un hábito (ver DOC-01). */
 export const HABIT_FREQUENCY_CHANGE_COOLDOWN_MS = 7 * 24 * 3_600_000;

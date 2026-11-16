@@ -443,7 +443,7 @@ El sistema debe calcular la generación pasiva de monedas y reducir gradualmente
 #### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
 - **CA-03 → US-05 CA-02 (deuda aceptada, DEC-016):** `calculateTick` ya existe desde US-05 como orquestador de jornada (reciclaje nocturno y reset diario). Esta US **extiende esa misma función** con la liquidación de producción pasiva: no crea un segundo tick ni reimplementa la detección de cambio de día operativo.
 
-### US-08 (usuario): Registro de Hidratación, Lectura y Sesiones de Foco
+### US-08 (usuario): Registro de Hidratación, Lectura y Sesiones de Foco `[IN PROGRESS]`
 Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis sesiones de concentración asignadas a un barrio, para hacer evolucionar los edificios centrales de la ciudad y obtener recompensas por mi tiempo de estudio.   
 
 
@@ -470,6 +470,13 @@ Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis se
 - Dado que existe al menos un barrio activo y el usuario selecciona un barrio destino y un PomodoroPreset,  
 - Cuando inicia la sesión de foco y decide completarla al llegar a workMinutes o interrumpirla anticipadamente tras haber transcurrido al menos 1 minuto,  
 - Entonces el sistema registra la sesión de foco vinculada al neighborhoodId seleccionado y dispara el cálculo de liquidación de monedas locales (para ese barrio) y XP Global (para el Ayuntamiento).  
+
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+- **CA-01/CA-02/CA-04 → US-09 (contrato obligatorio, DEC-020):** el *hard cap* diario (3.0 L / 150 págs) es de **US-09 CA-01**; US-08 acredita **sin recortar** y US-09 lo envuelve. "Páginas del día" sigue diferido a US-09 (`GOVERNANCE.md` §4). La curva `F_día` y la regla del 80% son **US-09 CA-03/CA-04**: US-08 registra la sesión y dispara, no liquida.
+- **CA-01 → umbrales de nivel:** 15 / 60 / 200 / 500 L son de `ECONOMY.md` §5.1 y viven en `economyConstants.ts`, nunca dentro de la regla (misma deuda de estilo que `townHallLevel.ts`, que hoy tiene su tabla adentro).
+- **CA-03 → tipos:** `PomodoroPreset` no tiene `id` ni `longBreakMinutes`, y el CA exige ambos (`longBreakMinutes: number | null`). El ripple toca `dayZero.ts`. `shortBreakMinutes` sugerido = `floor(W / 5)` es un **valor por defecto editable**, no una regla de dominio: se sugiere en el formulario, no se reimpone en `core` (DEC-017).
+- **CA-04 → sin sesión persistida todavía:** la "liquidación" de esta US es un disparo. Si US-09 necesita el detalle de la sesión, el tipo nace ahí, no acá (YAGNI).
 
 
 #### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):

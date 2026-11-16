@@ -45,4 +45,15 @@ describe('hydrateGameState — US-01 CA-03: hidratación en arranque', () => {
     expect(saved).toEqual([hydrated]);
     expect(await storage.loadState()).toEqual(hydrated);
   });
+
+  it('normaliza un snapshot anterior a focusSessions sin volver a persistirlo', async () => {
+    const legacy = { ...createDayZeroState(NOW) };
+    delete (legacy as Partial<GameState>).focusSessions;
+    const { storage, saved } = createInMemoryStorage(legacy);
+
+    const hydrated = await hydrateGameState(storage, NOW);
+
+    expect(hydrated.focusSessions).toEqual({});
+    expect(saved).toHaveLength(0);
+  });
 });

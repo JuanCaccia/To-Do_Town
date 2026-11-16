@@ -27,9 +27,12 @@ export interface DayCycleConfig {
 }
 
 export interface PomodoroPreset {
+  id: string;
+  name: string;
   workMinutes: number;
   shortBreakMinutes: number;
   cyclesBeforeLongBreak: number;
+  longBreakMinutes: number | null;
 }
 
 export interface TownHall {
@@ -105,7 +108,6 @@ export interface HabitBuilding {
 }
 
 export type TaskWeight = 'SIMPLE' | 'STANDARD' | 'COMPLEX';
-
 export interface OneOffTask {
   neighborhoodId: EntityId;
   title: string;
@@ -113,6 +115,20 @@ export interface OneOffTask {
   boardStatus: 'MASTER_PLAN' | 'IN_CONSTRUCTION' | 'COMPLETED';
   createdAt: TimestampMs;
   completedAt: TimestampMs | null;
+}
+
+/**
+ * US-08 CA-04: sesión de foco ya terminada. `focusMinutes` es el aporte crudo al
+ * foco del día; la curva de fatiga y la regla del 80% lo consumen desde afuera
+ * (GOVERNANCE DEC-020).
+ */
+export interface FocusSession {
+  neighborhoodId: EntityId;
+  presetId: string;
+  startedAt: TimestampMs;
+  endedAt: TimestampMs;
+  focusMinutes: number;
+  outcome: 'COMPLETED' | 'INTERRUPTED';
 }
 
 export interface GameState {
@@ -133,4 +149,5 @@ export interface GameState {
   neighborhoods: Record<EntityId, Neighborhood>;
   habits: Record<EntityId, HabitBuilding>;
   tasks: Record<EntityId, OneOffTask>;
+  focusSessions: Record<EntityId, FocusSession>;
 }

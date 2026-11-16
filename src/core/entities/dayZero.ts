@@ -23,8 +23,22 @@ export function createDayZeroState(now: TimestampMs): GameState {
     config: {
       dayCycle: DAY_ZERO_DAY_CYCLE,
       pomodoroPresets: [
-        { workMinutes: 25, shortBreakMinutes: 5, cyclesBeforeLongBreak: 4 },
-        { workMinutes: 50, shortBreakMinutes: 15, cyclesBeforeLongBreak: 4 },
+        {
+          id: 'pomodoro-25-5',
+          name: '25/5',
+          workMinutes: 25,
+          shortBreakMinutes: 5,
+          cyclesBeforeLongBreak: 4,
+          longBreakMinutes: null,
+        },
+        {
+          id: 'pomodoro-50-15',
+          name: '50/15',
+          workMinutes: 50,
+          shortBreakMinutes: 15,
+          cyclesBeforeLongBreak: 4,
+          longBreakMinutes: null,
+        },
       ],
     },
     globals: {
@@ -96,5 +110,6 @@ export function createDayZeroState(now: TimestampMs): GameState {
         completedAt: null,
       },
     },
+    focusSessions: {},
   };
 }
