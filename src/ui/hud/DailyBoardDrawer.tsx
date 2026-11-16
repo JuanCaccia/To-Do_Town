@@ -4,6 +4,7 @@ import { TASK_REWARDS } from '../../core/constants/economyConstants';
 import { getTaskFatigueMultiplier } from '../../core/rules/taskFatigue';
 import type { GameState, TaskWeight } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
+import { HabitCheckInList } from './HabitCheckInList';
 import {
   BADGE_ON_LIGHT,
   BUTTON_OUTLINE_ON_LIGHT,
@@ -11,6 +12,9 @@ import {
   BUTTON_PRIMARY_ON_LIGHT,
   PanelTitle,
   Rule,
+  TAB_ITEM,
+  TAB_ITEM_ACTIVE,
+  TAB_ITEM_IDLE,
 } from './primitives';
 
 type BoardTab = 'IN_CONSTRUCTION' | 'MASTER_PLAN';
@@ -134,9 +138,7 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
             type="button"
             onClick={() => setTab(value)}
             aria-current={tab === value ? 'true' : undefined}
-            className={`flex-1 rounded-none px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
-              tab === value ? 'bg-black text-pearl' : 'text-neutral-600 hover:text-black'
-            }`}
+            className={`flex-1 ${TAB_ITEM} ${tab === value ? TAB_ITEM_ACTIVE : TAB_ITEM_IDLE}`}
           >
             {TAB_LABELS[value]}
           </button>
@@ -147,83 +149,93 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
         <Rule className="mx-4" />
       </div>
 
-      <ul className="flex-1 overflow-y-auto">
-        {tasks.length === 0 && (
-          <li className="px-4 py-6 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-            Sin tareas.
-          </li>
-        )}
+      <div className="flex-1 overflow-y-auto">
+        <ul>
+          {tasks.length === 0 && (
+            <li className="px-4 py-6 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+              Sin tareas.
+            </li>
+          )}
 
-        {tasks.map(([taskId, task]) => {
-          const reward = TASK_REWARDS[task.weight];
-          const neighborhood = state.neighborhoods[task.neighborhoodId];
-          const multiplier =
-            neighborhood === undefined
-              ? 1
-              : getTaskFatigueMultiplier(
-                  neighborhood.dailyTasksCompletedCount,
-                  globalTasksCompletedCount,
-                  state.globals.aqueduct.dailyLiters,
-                );
+          {tasks.map(([taskId, task]) => {
+            const reward = TASK_REWARDS[task.weight];
+            const neighborhood = state.neighborhoods[task.neighborhoodId];
+            const multiplier =
+              neighborhood === undefined
+                ? 1
+                : getTaskFatigueMultiplier(
+                    neighborhood.dailyTasksCompletedCount,
+                    globalTasksCompletedCount,
+                    state.globals.aqueduct.dailyLiters,
+                  );
 
-          return (
-            <li
-              key={taskId}
-              className="relative px-4 py-3 after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-black/15 last:after:hidden"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-bold text-black">{task.title}</span>
-                <span className="flex shrink-0 gap-1">
-                  {multiplier < 1 && (
-                    <span className={BADGE_ON_LIGHT}>{FATIGUE_LABELS[multiplier] ?? 'FATIGA'}</span>
-                  )}
-                  <span className={BADGE_ON_LIGHT}>{task.weight}</span>
-                </span>
-              </div>
+            return (
+              <li
+                key={taskId}
+                className="relative px-4 py-3 after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-black/15 last:after:hidden"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-bold text-black">{task.title}</span>
+                  <span className="flex shrink-0 gap-1">
+                    {multiplier < 1 && (
+                      <span className={BADGE_ON_LIGHT}>{FATIGUE_LABELS[multiplier] ?? 'FATIGA'}</span>
+                    )}
+                    <span className={BADGE_ON_LIGHT}>{task.weight}</span>
+                  </span>
+                </div>
 
-              <div className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-                {neighborhood?.name ?? 'Barrio eliminado'} ·{' '}
-                <span className="text-black">
-                  +{formatAmount(reward.coins * multiplier)} CR
-                </span>{' '}
-                /{' '}
-                <span className="text-black">
-                  +{formatAmount(reward.urbanizationProgress * multiplier)}%
-                </span>
-              </div>
+                <div className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+                  {neighborhood?.name ?? 'Barrio eliminado'} ·{' '}
+                  <span className="text-black">
+                    +{formatAmount(reward.coins * multiplier)} CR
+                  </span>{' '}
+                  /{' '}
+                  <span className="text-black">
+                    +{formatAmount(reward.urbanizationProgress * multiplier)}%
+                  </span>
+                </div>
 
-              <div className="mt-3 flex gap-2">
-                {task.boardStatus === 'MASTER_PLAN' ? (
-                  <button
-                    type="button"
-                    onClick={() => void moveTask(taskId, 'IN_CONSTRUCTION')}
-                    className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
-                  >
-                    Pasar a En Obra
-                  </button>
-                ) : (
-                  <>
+                <div className="mt-3 flex gap-2">
+                  {task.boardStatus === 'MASTER_PLAN' ? (
                     <button
                       type="button"
-                      onClick={() => void completeTask(taskId)}
-                      className="rounded-none border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-red-500"
-                    >
-                      Completar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void moveTask(taskId, 'MASTER_PLAN')}
+                      onClick={() => void moveTask(taskId, 'IN_CONSTRUCTION')}
                       className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
                     >
-                      Devolver
+                      Pasar a En Obra
                     </button>
-                  </>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void completeTask(taskId)}
+                        className="rounded-none border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-red-500"
+                      >
+                        Completar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void moveTask(taskId, 'MASTER_PLAN')}
+                        className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
+                      >
+                        Devolver
+                      </button>
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* US-06: habits are checked in from the same "En Obra (Hoy)" tab. */}
+        {tab === 'IN_CONSTRUCTION' && (
+          <>
+            <Rule className="mx-4" />
+            <HabitCheckInList state={state} />
+          </>
+        )}
+      </div>
 
       <Rule className="mx-4" />
 

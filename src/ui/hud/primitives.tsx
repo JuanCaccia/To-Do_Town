@@ -110,6 +110,15 @@ export const BUTTON_PRIMARY_ON_DARK =
 export const BUTTON_PRIMARY_ON_LIGHT =
   'rounded-none border border-black bg-black px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-400 disabled:bg-neutral-400 disabled:text-neutral-600';
 
+/**
+ * Option inside a zone's tab strip. The selected one is inverted to the
+ * opposite colour; selection is never carried by a third grey.
+ */
+export const TAB_ITEM =
+  'rounded-none px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors';
+export const TAB_ITEM_ACTIVE = 'bg-black text-pearl';
+export const TAB_ITEM_IDLE = 'text-neutral-600 hover:text-black';
+
 /** Secondary action on a pearl surface. */
 export const BUTTON_OUTLINE_ON_LIGHT =
   'rounded-none border border-black px-4 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-pearl disabled:cursor-not-allowed disabled:border-neutral-400 disabled:text-neutral-600 disabled:hover:bg-transparent disabled:hover:text-neutral-600';

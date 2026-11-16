@@ -326,7 +326,8 @@ Como sistema, necesito devolver las tareas inconclusas al listado general cuando
 
 **Estado: VALIDADO a mano (2026-11-15).** Fatiga visible y cobro a la mitad desde la 6ª tarea; rotación de jornada al recargar con reciclaje de tareas, contadores en 0, tesorería intacta y sin eventos fantasma en la segunda recarga.
 
-### US-06 (usuario): Gestión, Mudanza y Retiro de Hábitos:
+### US-06 (usuario): Gestión, Mudanza y Retiro de Hábitos `[DONE]`
+> **Alcance cerrado:** los 5 CAs están implementados y testeados (43 tests nuevos; 180 en el proyecto). **Fase 4 cerrada:** Plaza de Infraestructura y Museo de Hábitos en el Inspector, check-in en la Pizarra Diaria, mudanza con confirmación inline. El HUD no muestra eficiencia ni tasa de monedas: son de US-07 CA-01 (ver nota de la Prueba 1). **Pruebas 1-2 validadas a mano (2026-11-15).** **Prueba 3 diferida a DEV-01:** validar el retiro al Museo exige sembrar un hábito Nivel 5 sin ensuciar el XP real, y la herramienta DEV todavía no existe.
 Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, cambiar su frecuencia, mudarlos de distrito o retirarlos al museo cuando alcancen su nivel máximo, para consolidar mis rutinas y liberar espacio manteniendo su reconocimiento histórico.   
 
 
@@ -367,13 +368,29 @@ Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, ca
 - Entonces el hábito pasa a status: 'RETIRED_TO_MUSEUM' con retiredAt: now (eficiencia derivada 0.0: deja de producir monedas pero queda exhibido en el Museo del barrio), libera el lote físico en la Plaza de Infraestructura para permitir un nuevo hábito activo, y acredita +300 XP de Calidad de Vida al Ayuntamiento.  
 
 
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **Resuelto en CA-01:** el alta vive en `src/core/entities/habit.ts` (`createHabit`), no en una regla, siguiendo el precedente de `createNeighborhood`. El tope de 4 es una capacidad estructural y por eso es constante local (`PRODUCTIVE_LOTS`), igual que los 6 lotes de una cuadra en `urbanizationSettlement.ts`. El predicado de ocupación es literal: `status !== 'RETIRED_TO_MUSEUM'` (un hábito pausado **sí** ocupa lote). No existe `NEIGHBORHOOD_NOT_FOUND`: crear un hábito no requiere lookup del barrio, sólo filtrar por `neighborhoodId`.
+- **Resuelto en CA-02:** `completeHabit` (`src/core/rules/habitCheckIn.ts`) compara días **operativos** con `getOperationalDay`, nunca fechas calendario: un check-in a las 03:00 pertenece a la jornada anterior (US-05 CA-01). Los pisos 7/21/50/100 y el XP +25/+50/+100/+250 viven en `economyConstants.ts` como `HABIT_CHECKPOINTS` (ECONOMY §5.1). La promoción es por **igualdad de racha** (`nuevaRacha === piso`), no derivando el nivel de la racha: es lo que el CA pide ("por primera vez") y lo que mantiene coherente el reinicio de CA-03.
+- **CA-03 → US-07 CA-01 (contrato obligatorio, deuda de orden entre historias):** el CA dice que el cambio de frecuencia *"recalcula inmediatamente su eficiencia derivada (`getHabitEfficiency`)"*, pero esa función **no pertenece a esta US**. La ventana de enfriamiento `T` (escalones `0.5T` / `0.75T` / `T`, gracia y bono de *Inercia Urbana*) es **US-07 CA-01**. Resolución: la eficiencia es **derivada** de `(lastCompletedAt, frequency, now)`, así que cambiar `frequency` la cambia **por construcción**, sin llamar a nadie. US-06 no crea `getHabitEfficiency` ni la deja como stub; nace en US-07 CA-01 y US-06 no la necesita.
+- **CA-03 → tipo:** `HabitBuilding` gana `lastFrequencyChangeAt: TimestampMs | null` (no estaba en `ARCHITECTURE.md` §5). El ripple llega a `dayZero.ts`, donde el hábito semilla nace en `null`. El cooldown se mide en **millisegundos exactos** (7 × 24 h), no en días operativos: es una espera, no una jornada.
+- **CA-03 → piso del nivel 1:** el CA escribe el piso como `"0/1"`. Se resuelve a **0**, porque `createHabit` nace con `currentStreakDays: 0` y la promoción a nivel 2 ocurre exactamente al llegar a 7. Adoptar 1 haría que un alta nueva "arranque" con un día regalado.
+- **CA-03 → ubicación de la constante:** el cooldown de 7 días entra en `economyConstants.ts` aunque **`ECONOMY.md` no lo declara en ninguna tabla**: hoy el único origen es este CA. Queda como deuda de documentación (ver `DOC-01` en Deuda Registrada), no como libertad para volver a inventarlo dentro de la regla.
+- **CA-04 → CA-01:** la mudanza **no** revalida el tope de lotes con `createHabit`: el destino necesita su propio chequeo de lote libre (menos de 4 activos). Reusar el contador de `habit.ts` es válido; duplicar el `4` no.
+- **Resuelto en CA-04:** `moveHabit` (`src/core/rules/habitRelocation.ts`) reusa `hasFreeProductiveLot`, exportado desde `entities/habit.ts`, así que el `4` sigue viviendo en un lugar. La mudanza es un spread: nivel, racha, `lastCompletedAt` y el cooldown de frecuencia viajan intactos, y ningún `treasuryCoins` se toca. Se agregó la guarda **`SAME_NEIGHBORHOOD`**, que el CA no nombra: sin ella, mudar a un barrio propio con 4 hábitos devolvía `PRODUCTIVE_LOTS_FULL`, un diagnóstico falso. **No se agregó `movedAt`** (YAGNI: no hay contabilidad de devengado todavía); queda el agujero declarado para US-07 CA-03.
+- **Resuelto en CA-05:** `retireHabit` (`src/core/rules/habitRetirement.ts`) exige `checkpointLevel === 5` y `status === 'ACTIVE'`. El guard de estado no es decorativo: **sin él los +300 XP se pueden cobrar en bucle**. `retiredAt` es requerido y nullable (la placa del Museo necesita la fecha). Los +300 viven en `HABIT_MUSEUM_RETIREMENT_TOWN_HALL_XP` (ECONOMY §5.1). El test que importa aserta la **consecuencia** — que el barrio vuelve a aceptar un quinto hábito — no el cambio de `status`.
+- **Fase 4 → HUD:** `Plaza`/`Museo` viven en el Inspector y el check-in en la Pizarra Diaria. El HUD **no** muestra eficiencia, `%` de suministro ni tasa de monedas: son de US-07 CA-01. La ocupación `N/4` y el predicado de lote ocupado se **importan** de `core/entities/habit.ts` (`PRODUCTIVE_LOTS`, `countProductiveHabits`); la capa de presentación no reimplementa la regla. "Cumplido hoy" se decide comparando días operativos contra el **instante actual**, nunca contra `state.lastOperationalDay`, que sólo está tan fresco como el último tick. La confirmación de mudanza es **inline** y no un modal: `UI_DESIGN.md` §7 auditoría 8 fija `bg-pearl` en exactamente 3 superficies. El check-in usa botón negro, no `red-600`: el acento está limitado a cinco puestos (§6). `changeHabitFrequency` está en el store pero **sin cablear a la UI**: ninguna Prueba de Usuario de esta US lo pide.
+
+
 #### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
 
-**Prueba 1: Alta de hábitos, tope de 4 lotes y primer encendido**
+**Prueba 1: Alta de hábitos, tope de 4 lotes y primer check-in**
 
 - Acción: En el Inspector del barrio "GYM", crear un hábito "Entrenar Fuerza" (3 veces por semana) y luego marcar su check-in desde la Pizarra Diaria (En Obra (Hoy)). Intentar crear un 5to hábito en el mismo barrio tras haber llenado los 4 lotes.  
 
-- Resultado esperado: Al crearse, "Entrenar Fuerza" figura apagado (0%); al tildarlo hoy, se enciende al 100% (5 🪙/h) con racha 1. Al intentar agregar un 5to hábito en "GYM", la UI bloquea el alta indicando que los 4 lotes de la Plaza de Infraestructura están ocupados.  
+- Resultado esperado: Al crearse, "Entrenar Fuerza" aparece en la Plaza de Infraestructura en Nv.1, con racha 0 d y ocupando 1 de 4 lotes; el hábito **nace en Pleno** (eficiencia derivada 1.0) porque la ventana de enfriamiento corre desde `createdAt` (DEC-013). Al marcar el check-in desde la Pizarra Diaria, la fila pasa a "Cumplido Hoy" y la racha sube a 1 d. Al intentar crear un 5to hábito en "GYM", la UI bloquea el alta indicando que los 4 lotes de la Plaza de Infraestructura están ocupados.  
+
+> **Corregida (2026-11-15):** esta prueba decía antes *"figura apagado (0%) … se enciende al 100% (5 🪙/h)"*. Contradecía su propio CA-01 y a DEC-013 (origen de la ventana: `createdAt`, no el primer check-in). La **eficiencia visible** y la **tasa de monedas por hora** son de **US-07 CA-01** (`getHabitEfficiency`): hasta que esa US exista, el HUD no las muestra y US-06 no las inventa. La Fase 4 de US-06 valida alta, racha, tope de lotes y check-in; no valida producción.
 
 
 **Prueba 2: Mudanza de distrito con confirmación**
@@ -657,6 +674,8 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **Motivo:** US-02 Prueba 3 exige un barrio Nivel 1 con 1000 🪙 y XP de Ayuntamiento en cero. El loop real (`tarea → monedas`) siembra +10 XP por casa en el camino, así que los números literales del criterio (50 → 80 XP) no se pueden reproducir sin sembrar saldo directamente.
 
+**Segundo consumidor (US-06 Prueba 3):** validar el retiro al Museo exige un hábito en **Nivel 5**, y el único camino honesto hoy es cumplirlo 100 días o editar IndexedDB a mano. La misma herramienta DEV resuelve ambos casos; por eso la Prueba 3 de US-06 queda **diferida a esta deuda** y no se marca como validada.
+
 **Alcance mínimo cuando se tome:** función pura en `src/adapters/dev-tools/` que devuelva un `GameState` con la tesorería inyectada, acción espejo en `useGameStore` y botón visible sólo bajo `import.meta.env.DEV`. **Entra con test**: produce estado, no es un detalle de presentación.
 
 **Estado:** diferido por decisión explícita del usuario. No se inventa antes.
@@ -673,4 +692,18 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 `ROADMAP.md` §3 define el Inspector Contextual como *"Tesorería, Plaza de Infraestructura (4 lotes + Museo), cuadras, mejoras de infraestructura (Niveles 1-4) y mudanzas"*: las tareas no están en esa lista. Las Pruebas 1 y 2 de US-04 ubican la tarea **únicamente** en el Drawer.
 
-**Consecuencia:** con el Drawer cerrado no hay indicador de tareas pendientes. Si se quiere un contador por barrio en el Inspector, entra como **mejora explícita con su propio criterio**, nunca como corrección silenciosa de un "bug". 
+**Consecuencia:** con el Drawer cerrado no hay indicador de tareas pendientes. Si se quiere un contador por barrio en el Inspector, entra como **mejora explícita con su propio criterio**, nunca como corrección silenciosa de un "bug".
+
+### DOC-01: `ECONOMY.md` no declara el cooldown de cambio de frecuencia
+
+**Motivo:** el cooldown de 7 días entre cambios de frecuencia de un hábito existe **sólo** en `BACKLOG.md` (US-06 CA-03). `GOVERNANCE.md` §1.2 asigna los umbrales de modelo a `ECONOMY.md`, así que hoy la constante (`economyConstants.ts`) tiene menos respaldo documental que las demás.
+
+**Alcance mínimo:** agregar una fila/sección en `ECONOMY.md` §2.1 con el cooldown y, si corresponde, la fórmula de la ventana `T` que hoy vive en `DOMAIN_DESIGN.md` §4. No es un cambio de código: el valor ya está en su lugar.
+
+### VAL-01: Validación de entrada del hábito sin dueño explícito
+
+**Motivo:** dos User Stories tomaron la misma decisión por separado. US-02 CA-01 dejó el `title` vacío fuera del motor ("precondición del usuario, no regla del motor") y US-06 CA-01 dejó afuera el `count` entre 1 y 6 de `TIMES_PER_WEEK`. Ninguna de las dos quedó registrada como deuda, así que un tercer formulario puede decidir distinto.
+
+**Pendiente:** decidir una sola vez si la validación vive en el borde (formulario) o en `core` como guarda, y aplicarla retroactivamente a `createNeighborhood` y `createHabit`. **No se decide antes de que exista el formulario del Inspector** (US-06 Fase 4): sin el borde a la vista, la decisión se toma a ciegas.
+
+**Estado:** abierta, sin bloquear a nadie. 

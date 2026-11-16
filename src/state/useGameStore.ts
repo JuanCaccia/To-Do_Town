@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { CryptoIdAdapter } from '../adapters/id/CryptoIdAdapter';
 import { IndexedDBAdapter } from '../adapters/storage/IndexedDBAdapter';
 import { createNeighborhood } from '../core/entities/neighborhood';
+import { createHabit } from '../core/entities/habit';
+import type { HabitCreationResult } from '../core/entities/habit';
 import { completeTask, createTask, moveTask } from '../core/entities/task';
 import type { IdPort } from '../core/ports/IdPort';
 import type { StoragePort } from '../core/ports/StoragePort';
@@ -11,6 +13,14 @@ import type { BlockLevelingResult } from '../core/rules/blockLeveling';
 import { calculateTick } from '../core/rules/calculateTick';
 import { purchaseNeighborhoodDecoration } from '../core/rules/decorationPurchase';
 import type { DecorationPurchaseResult } from '../core/rules/decorationPurchase';
+import { completeHabit } from '../core/rules/habitCheckIn';
+import type { HabitCheckInResult } from '../core/rules/habitCheckIn';
+import { changeHabitFrequency } from '../core/rules/habitFrequencyChange';
+import type { HabitFrequencyChangeResult } from '../core/rules/habitFrequencyChange';
+import { moveHabit } from '../core/rules/habitRelocation';
+import type { HabitRelocationResult } from '../core/rules/habitRelocation';
+import { retireHabit } from '../core/rules/habitRetirement';
+import type { HabitRetirementResult } from '../core/rules/habitRetirement';
 import { upgradeNeighborhoodInfrastructure } from '../core/rules/infrastructureUpgrade';
 import type { InfrastructureUpgradeResult } from '../core/rules/infrastructureUpgrade';
 import type {
@@ -18,6 +28,7 @@ import type {
   DecorationKind,
   EntityId,
   GameState,
+  HabitFrequency,
   TaskWeight,
   TimestampMs,
 } from '../core/types';
@@ -51,6 +62,18 @@ export interface GameStoreState {
   }): Promise<EntityId>;
   moveTask(taskId: EntityId, target: 'MASTER_PLAN' | 'IN_CONSTRUCTION'): Promise<void>;
   completeTask(taskId: EntityId): Promise<void>;
+  createHabit(input: {
+    neighborhoodId: EntityId;
+    title: string;
+    frequency: HabitFrequency;
+  }): Promise<HabitCreationResult>;
+  completeHabitToday(habitId: EntityId): Promise<HabitCheckInResult>;
+  changeHabitFrequency(
+    habitId: EntityId,
+    frequency: HabitFrequency,
+  ): Promise<HabitFrequencyChangeResult>;
+  moveHabit(habitId: EntityId, targetNeighborhoodId: EntityId): Promise<HabitRelocationResult>;
+  retireHabitToMuseum(habitId: EntityId): Promise<HabitRetirementResult>;
 }
 
 export function createGameStore(deps: GameStoreDeps) {
@@ -189,6 +212,71 @@ export function createGameStore(deps: GameStoreDeps) {
         }
 
         await commit(next, 'TASK_COMPLETED', { taskId });
+      },
+
+      async createHabit(input) {
+        const habitId = deps.idPort.generateId();
+        const result = createHabit(requireState(), { ...input, id: habitId }, deps.now());
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'HABIT_CREATED', {
+          habitId,
+          neighborhoodId: input.neighborhoodId,
+          frequency: input.frequency,
+        });
+
+        return result;
+      },
+
+      async completeHabitToday(habitId) {
+        const result = completeHabit(requireState(), habitId, deps.now());
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'HABIT_CHECKED_IN', { habitId });
+
+        return result;
+      },
+
+      async changeHabitFrequency(habitId, frequency) {
+        const result = changeHabitFrequency(requireState(), habitId, frequency, deps.now());
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'HABIT_FREQUENCY_CHANGED', { habitId, frequency });
+
+        return result;
+      },
+
+      async moveHabit(habitId, targetNeighborhoodId) {
+        const result = moveHabit(requireState(), habitId, targetNeighborhoodId);
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'HABIT_MOVED', { habitId, targetNeighborhoodId });
+
+        return result;
+      },
+
+      async retireHabitToMuseum(habitId) {
+        const result = retireHabit(requireState(), habitId, deps.now());
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'HABIT_RETIRED_TO_MUSEUM', { habitId });
+
+        return result;
       },
     };
   });

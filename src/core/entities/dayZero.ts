@@ -72,6 +72,8 @@ export function createDayZeroState(now: TimestampMs): GameState {
         checkpointLevel: 1,
         lastCompletedAt: null,
         createdAt: now,
+        lastFrequencyChangeAt: null,
+        retiredAt: null,
         status: 'ACTIVE',
       },
     },

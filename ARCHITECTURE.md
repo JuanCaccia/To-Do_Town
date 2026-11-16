@@ -187,7 +187,8 @@ export type HabitFrequency =
 export type HabitCheckpointLevel = 1 | 2 | 3 | 4 | 5; // Pisos: 1, 7, 21, 50, 100 días
 
 export interface HabitBuilding {
-  id: EntityId;
+  // `id` NO es un campo (mismo criterio que `CityBlock.id`, US-02 CA-03): la identidad
+  // es la clave de `GameState.habits` (`Record<EntityId, HabitBuilding>`).
   neighborhoodId: EntityId;
   title: string;
   frequency: HabitFrequency;
@@ -195,11 +196,14 @@ export interface HabitBuilding {
   checkpointLevel: HabitCheckpointLevel;
   lastCompletedAt: TimestampMs | null;
   createdAt: TimestampMs;                 // Origen de la ventana de enfriamiento (DEC-013)
+  lastFrequencyChangeAt: TimestampMs | null; // US-06 CA-03: cooldown de 7 días (deuda DOC-01)
   // Eficiencia NO persistida: se deriva con getHabitEfficiency(habit, operationalNow, cutoffHour).
   // t = operationalNow - (lastCompletedAt ?? createdAt). Ver GOVERNANCE.md §2.4 (DEC-005/006/012/013).
+  // getHabitEfficiency nace en US-07 CA-01: US-06 CA-03 no la necesita porque la eficiencia
+  // es derivada y cambiar `frequency` la recalcula por construcción.
   status: 'ACTIVE' | 'PAUSED' | 'RETIRED_TO_MUSEUM';
-  pauseReason?: string;
-  retiredAt?: TimestampMs;
+  retiredAt: TimestampMs | null;          // US-06 CA-05: fecha de la placa del Museo de Hábitos
+  // pauseReason?: string;  // TODAVÍA NO EXISTE: no hay CA de pausa que lo requiera (YAGNI estricto).
 }
 
 export type TaskWeight = 'SIMPLE' | 'STANDARD' | 'COMPLEX'; // +10%, +25%, +50% casa | 20, 50, 100 monedas

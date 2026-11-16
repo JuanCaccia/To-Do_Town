@@ -97,6 +97,8 @@ export interface HabitBuilding {
   checkpointLevel: HabitCheckpointLevel;
   lastCompletedAt: TimestampMs | null;
   createdAt: TimestampMs;
+  lastFrequencyChangeAt: TimestampMs | null;
+  retiredAt: TimestampMs | null;
   status: 'ACTIVE' | 'PAUSED' | 'RETIRED_TO_MUSEUM';
 }
 

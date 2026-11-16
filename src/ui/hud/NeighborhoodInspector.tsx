@@ -4,6 +4,7 @@ import { levelNeighborhoodBlock } from '../../core/rules/blockLeveling';
 import { upgradeNeighborhoodInfrastructure } from '../../core/rules/infrastructureUpgrade';
 import type { DecorationKind, EntityId, GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
+import { HabitDistrict } from './HabitDistrict';
 import {
   BADGE,
   BUTTON_OUTLINE_ON_LIGHT,
@@ -140,6 +141,12 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
           </p>
         )}
       </div>
+
+      <Rule />
+
+      {/* Plaza de Infraestructura + Museo de Hábitos (US-06). Both are
+          sections of this same zone: no extra ribbon, no extra surface. */}
+      <HabitDistrict state={state} neighborhoodId={neighborhoodId} />
 
       <Rule />
 
