@@ -23,6 +23,14 @@ import { retireHabit } from '../core/rules/habitRetirement';
 import type { HabitRetirementResult } from '../core/rules/habitRetirement';
 import { upgradeNeighborhoodInfrastructure } from '../core/rules/infrastructureUpgrade';
 import type { InfrastructureUpgradeResult } from '../core/rules/infrastructureUpgrade';
+import { createPomodoroPreset } from '../core/entities/pomodoroPreset';
+import type { PomodoroPresetCreationResult } from '../core/entities/pomodoroPreset';
+import { recordFocusSession } from '../core/rules/focusSession';
+import type { FocusSessionResult, NewFocusSessionInput } from '../core/rules/focusSession';
+import { registerPageReading } from '../core/rules/libraryReading';
+import type { LibraryReadingResult } from '../core/rules/libraryReading';
+import { registerWaterIntake } from '../core/rules/waterIntake';
+import type { WaterIntakeAmount } from '../core/rules/waterIntake';
 import type {
   CityBlock,
   DecorationKind,
@@ -76,6 +84,10 @@ export interface GameStoreState {
   ): Promise<HabitFrequencyChangeResult>;
   moveHabit(habitId: EntityId, targetNeighborhoodId: EntityId): Promise<HabitRelocationResult>;
   retireHabitToMuseum(habitId: EntityId): Promise<HabitRetirementResult>;
+  registerWater(amount: WaterIntakeAmount): Promise<void>;
+  registerPages(pages: number): Promise<LibraryReadingResult>;
+  createPreset(input: { name: string; workMinutes: number }): Promise<PomodoroPresetCreationResult>;
+  recordFocus(input: Omit<NewFocusSessionInput, 'id'>): Promise<FocusSessionResult>;
 }
 
 /**
@@ -326,6 +338,60 @@ export function createGameStore(deps: GameStoreDeps) {
         }
 
         await commit(result.state, 'HABIT_RETIRED_TO_MUSEUM', { habitId });
+
+        return result;
+      },
+
+      async registerWater(amount) {
+        const next = registerWaterIntake(requireSettledState(), amount);
+
+        await commit(next, 'WATER_REGISTERED', { amount });
+      },
+
+      async registerPages(pages) {
+        const result = registerPageReading(requireSettledState(), pages);
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'PAGES_REGISTERED', { pages });
+
+        return result;
+      },
+
+      async createPreset(input) {
+        const presetId = deps.idPort.generateId();
+        const result = createPomodoroPreset(requireSettledState(), { ...input, id: presetId });
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'POMODORO_PRESET_CREATED', {
+          presetId,
+          name: input.name,
+          workMinutes: input.workMinutes,
+        });
+
+        return result;
+      },
+
+      async recordFocus(input) {
+        const focusSessionId = deps.idPort.generateId();
+        const result = recordFocusSession(requireSettledState(), { ...input, id: focusSessionId });
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'FOCUS_SESSION_RECORDED', {
+          focusSessionId,
+          neighborhoodId: input.neighborhoodId,
+          presetId: input.presetId,
+          outcome: input.outcome,
+          focusMinutes: result.state.focusSessions[focusSessionId]?.focusMinutes,
+        });
 
         return result;
       },

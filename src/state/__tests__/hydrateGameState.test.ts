@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createDayZeroState } from '../../core/entities/dayZero';
 import type { StoragePort } from '../../core/ports/StoragePort';
-import type { GameState, TimestampMs } from '../../core/types';
+import { settlePassiveProduction } from '../../core/rules/passiveProduction';
+import type { GameState, Neighborhood, TimestampMs } from '../../core/types';
 import { hydrateGameState } from '../hydrateGameState';
 
 const NOW: TimestampMs = 1_700_000_000_000;
@@ -55,5 +56,44 @@ describe('hydrateGameState — US-01 CA-03: hidratación en arranque', () => {
 
     expect(hydrated.focusSessions).toEqual({});
     expect(saved).toHaveLength(0);
+  });
+
+  it('normaliza un barrio anterior a pendingCoinsRemainder y no envenena la tesorería', async () => {
+    const base = createDayZeroState(NOW);
+    const legacyNeighborhood = { ...base.neighborhoods['tutorial-neighborhood-id']! };
+    delete (legacyNeighborhood as Partial<Neighborhood>).pendingCoinsRemainder;
+    const legacy: GameState = {
+      ...base,
+      neighborhoods: { 'tutorial-neighborhood-id': legacyNeighborhood },
+    };
+    const { storage } = createInMemoryStorage(legacy);
+
+    const hydrated = await hydrateGameState(storage, NOW);
+    const settled = settlePassiveProduction(hydrated, NOW + 3_600_000);
+
+    expect(hydrated.neighborhoods['tutorial-neighborhood-id']?.pendingCoinsRemainder).toBe(0);
+    expect(
+      Number.isFinite(settled.neighborhoods['tutorial-neighborhood-id']?.treasuryCoins),
+    ).toBe(true);
+  });
+
+  it('repara una tesorería que ya quedó en NaN en el almacén', async () => {
+    const base = createDayZeroState(NOW);
+    const legacy: GameState = {
+      ...base,
+      neighborhoods: {
+        'tutorial-neighborhood-id': {
+          ...base.neighborhoods['tutorial-neighborhood-id']!,
+          treasuryCoins: Number.NaN,
+          pendingCoinsRemainder: Number.NaN,
+        },
+      },
+    };
+    const { storage } = createInMemoryStorage(legacy);
+
+    const hydrated = await hydrateGameState(storage, NOW);
+
+    expect(hydrated.neighborhoods['tutorial-neighborhood-id']?.treasuryCoins).toBe(0);
+    expect(hydrated.neighborhoods['tutorial-neighborhood-id']?.pendingCoinsRemainder).toBe(0);
   });
 });

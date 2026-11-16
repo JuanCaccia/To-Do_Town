@@ -106,8 +106,18 @@ export const BADGE_ON_LIGHT =
 export const BUTTON_PRIMARY_ON_DARK =
   'rounded-none border border-pearl bg-pearl px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-pearl';
 
-/** Primary action on a pearl surface: a solid black block, the maximum contrast available there. */
-export const BUTTON_PRIMARY_ON_LIGHT =
+/**
+ * Secondary action on the black chrome. Its first consumer is the top-bar
+ * hydration pair, which is why it exists now and not before.
+ */
+export const BUTTON_OUTLINE_ON_DARK =
+  'rounded-none border border-pearl px-4 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-600 disabled:text-neutral-500 disabled:hover:bg-transparent disabled:hover:text-neutral-500';
+
+/** Numeric input on the black chrome. Focus is never removed, only recoloured. */
+export const INPUT_ON_DARK =
+  'rounded-none border border-neutral-400 bg-transparent px-2 py-2 font-mono text-base font-bold leading-none text-pearl placeholder:text-neutral-500 focus:border-pearl focus:outline-none';
+
+/** Primary action on a pearl surface: a solid black block, the maximum contrast available there. */export const BUTTON_PRIMARY_ON_LIGHT =
   'rounded-none border border-black bg-black px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-400 disabled:bg-neutral-400 disabled:text-neutral-600';
 
 /**

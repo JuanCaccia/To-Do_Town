@@ -467,4 +467,91 @@ describe('useGameStore — US-07 CA-04: piso seguro antes de cualquier mutación
     expect(events.map((event) => event.type)).toEqual(['HABIT_DECAYED_TO_SAFE_FLOOR']);
     expect(store.getState().state?.habits[TUTORIAL_HABIT_ID]?.currentStreakDays).toBe(21);
   });
+
+  it('acredita el agua registrada y lo declara en el Outbox', async () => {
+    const { store, adapter } = await createHydratedStore({ seed: seedWithoutProduction(NOW) });
+
+    await store.getState().registerWater(0.5);
+
+    expect(store.getState().state?.globals.aqueduct.dailyLiters).toBe(0.5);
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'WATER_REGISTERED',
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.payload).toMatchObject({ amount: 0.5 });
+  });
+
+  it('acredita las páginas leídas y devuelve el resultado de la regla', async () => {
+    const { store, adapter } = await createHydratedStore({ seed: seedWithoutProduction(NOW) });
+
+    const result = await store.getState().registerPages(120);
+
+    expect(result.status).toBe('READING_REGISTERED');
+    expect(store.getState().state?.globals.library.level).toBe(2);
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'PAGES_REGISTERED',
+    );
+
+    expect(events).toHaveLength(1);
+  });
+
+  it('un aporte de páginas inválido no escribe evento', async () => {
+    const { store, adapter } = await createHydratedStore({ seed: seedWithoutProduction(NOW) });
+    const eventsBefore = await adapter.listPendingEvents();
+
+    const result = await store.getState().registerPages(-5);
+
+    expect(result).toEqual({ status: 'REJECTED', reason: 'INVALID_PAGE_COUNT' });
+    expect(await adapter.listPendingEvents()).toEqual(eventsBefore);
+  });
+
+  it('crea un preset Pomodoro y lo persiste con su evento', async () => {
+    const { store, adapter } = await createHydratedStore({ seed: seedWithoutProduction(NOW) });
+
+    const result = await store.getState().createPreset({ name: 'Estudio', workMinutes: 27 });
+
+    if (result.status !== 'CREATED') throw new Error('esperaba creación');
+
+    expect(store.getState().state?.config.pomodoroPresets).toHaveLength(3);
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'POMODORO_PRESET_CREATED',
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.payload).toMatchObject({ name: 'Estudio', workMinutes: 27 });
+  });
+
+  it('registra una sesión de foco completada con su barrio y su preset', async () => {
+    const { store, adapter } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedWithoutProduction(NOW),
+    });
+
+    const result = await store.getState().recordFocus({
+      neighborhoodId: TUTORIAL_NEIGHBORHOOD_ID,
+      presetId: 'pomodoro-25-5',
+      startedAt: NOW,
+      endedAt: NOW + 25 * 60_000,
+      outcome: 'COMPLETED',
+    });
+
+    if (result.status !== 'RECORDED') throw new Error('esperaba registro');
+
+    const sessions = Object.values(store.getState().state?.focusSessions ?? {});
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({
+      neighborhoodId: TUTORIAL_NEIGHBORHOOD_ID,
+      focusMinutes: 25,
+    });
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'FOCUS_SESSION_RECORDED',
+    );
+
+    expect(events).toHaveLength(1);
+  });
 });
