@@ -80,31 +80,36 @@ export function FocusTimer({ state }: FocusTimerProps) {
 
   if (startedAt === null) {
     return (
-      <div className="flex items-center gap-1.5">
-        <select
-          className={`${BUTTON_OUTLINE_ON_DARK} max-w-28`}
-          aria-label="Barrio de la sesión"
-          value={neighborhoodId}
-          onChange={(event) => setNeighborhoodId(event.target.value)}
-        >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {neighborhoods.map((id) => (
-            <option key={id} value={id}>
+            <button
+              key={id}
+              type="button"
+              className={id === neighborhoodId ? BUTTON_PRIMARY_ON_DARK : BUTTON_OUTLINE_ON_DARK}
+              aria-pressed={id === neighborhoodId}
+              onClick={() => setNeighborhoodId(id)}
+            >
               {state.neighborhoods[id]?.name ?? id}
-            </option>
+            </button>
           ))}
-        </select>
-        <select
-          className={`${BUTTON_OUTLINE_ON_DARK} max-w-24`}
-          aria-label="Preset Pomodoro"
-          value={presetId}
-          onChange={(event) => setPresetId(event.target.value)}
-        >
+        </div>
+        <span aria-hidden className="h-6 w-px bg-neutral-800" />
+        <div className="flex flex-wrap items-center gap-1.5">
           {presets.map((candidate) => (
-            <option key={candidate.id} value={candidate.id}>
+            <button
+              key={candidate.id}
+              type="button"
+              className={
+                candidate.id === presetId ? BUTTON_PRIMARY_ON_DARK : BUTTON_OUTLINE_ON_DARK
+              }
+              aria-pressed={candidate.id === presetId}
+              onClick={() => setPresetId(candidate.id)}
+            >
               {candidate.name}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
         <button
           type="button"
           className={BUTTON_OUTLINE_ON_DARK}
