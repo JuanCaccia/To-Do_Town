@@ -545,7 +545,8 @@ Como sistema, necesito otorgar bonos de energía diaria cuando el usuario regist
 
 
 
-### US-10 (usuario): Pausa Manual Consciente:
+### US-10 (usuario): Pausa Manual Consciente: `[DONE]`
+> **Alcance cerrado:** dominio + Fase 4 (2026-11-17), con 339 tests en el proyecto. Los 3 CAs están en verde y conectados: `activateManualPause` liquida con `calculateTick` antes de congelar, `getCityNow` mantiene el reloj de la ciudad en `lastTickAt` durante la pausa (producción 0, racha y eficiencia intactas, sin auto-pause) y `resumeManualPause` desplaza el `lastCompletedAt` de los hábitos activos por la duración exacta, limpia el motivo y anula `reactivationPenaltyUntil`. Completar tareas y hábitos se rechaza durante la pausa (el store no emite evento fantasma). Las 3 Pruebas de Usuario se validaron a mano en el HUD.
 Como usuario, quiero pausar y reanudar la ciudad indicando un motivo, para congelar mis rachas y ausentarme temporalmente sin sufrir penalizaciones.  
 
 
