@@ -588,7 +588,8 @@ Como usuario, quiero pausar y reanudar la ciudad indicando un motivo, para conge
 
 
 
-### US-11 (sistema): Hibernación por Inactividad y Arranque de Motores: 
+### US-11 (sistema): Hibernación por Inactividad y Arranque de Motores: `[DONE]`
+> **Alcance cerrado:** dominio + Fase 4 (2026-11-17), con 363 tests en el proyecto. Los 4 CAs están en verde y conectados: `calculateTick` hiberna a las 72 h de inactividad (hábitos `PAUSED`, racha al piso seguro, `lastTickAt` marcado, `CITY_HIBERNATED` en el Outbox); completar una tarea o un hábito en un barrio lo reactiva con `reactivationPenaltyUntil = now + 24 h`, salvo que la meta diaria de agua ya esté cumplida; la liquidación pasiva parte el intervalo en el borde de la ventana (×0.5 antes, ×1 después) y limpia la penalización al vencer; registrar agua hasta la meta libera todos los barrios. La actividad del usuario se sella en `requireSettledState`, así que el latido técnico no posterga la hibernación. El HUD permite completar durante la hibernación (sólo la pausa manual bloquea) y muestra el aviso correspondiente.
 Como sistema, necesito poner la ciudad en hibernación cuando detecte una inactividad prolongada y aplicar un período de adaptación al reactivar cada barrio, para proteger la ciudad durante ausencias imprevistas y acompañar el retorno gradual del usuario.  
 
 
