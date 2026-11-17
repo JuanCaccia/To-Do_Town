@@ -42,7 +42,7 @@ export function NeighborhoodPanel({ state, activeId, onSelect }: NeighborhoodPan
     <div className="grid gap-6 lg:max-w-[65%] lg:grid-cols-[17rem_1fr]">
       {/* One zone, one pearl block: the list and the create form share the same
           surface and are split only by an inset hairline. */}
-      <aside className="rounded-none bg-pearl text-black">
+      <aside className="self-start rounded-none bg-pearl text-black">
         <PanelTitle
           meta={
             <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
@@ -78,15 +78,8 @@ export function NeighborhoodPanel({ state, activeId, onSelect }: NeighborhoodPan
                     isActive ? 'bg-black text-pearl' : 'text-black hover:bg-black/5'
                   }`}
                 >
-                  <span className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-black uppercase tracking-tight">
-                      {neighborhood.name}
-                    </span>
-                    {isActive && (
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-red-500">
-                        Activo
-                      </span>
-                    )}
+                  <span className="text-sm font-black uppercase tracking-tight">
+                    {neighborhood.name}
                   </span>
                   <span
                     className={`mt-1 block font-mono text-[10px] uppercase tracking-widest ${
