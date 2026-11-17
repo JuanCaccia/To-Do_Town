@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { CryptoIdAdapter } from '../../adapters/id/CryptoIdAdapter';
 import { IndexedDBAdapter } from '../../adapters/storage/IndexedDBAdapter';
 import { createDayZeroState } from '../../core/entities/dayZero';
+import { calculateTick } from '../../core/rules/calculateTick';
 import type { GameState } from '../../core/types';
 import { createGameStore } from '../useGameStore';
 
@@ -649,5 +650,142 @@ describe('useGameStore — US-10 Fase 4: pausa manual consciente', () => {
     );
 
     expect(events).toHaveLength(1);
+  });
+});
+
+describe('useGameStore — US-11 CA-02: el regreso reactiva el barrio', () => {
+  beforeEach(resetIndexedDB);
+
+  const SEVENTY_TWO_HOURS = 72 * 3_600_000;
+  const RETURN_AT = NOW + 100 * 3_600_000;
+
+  function hibernatedSeed(): GameState {
+    const hibernated = calculateTick(createDayZeroState(NOW), NOW + SEVENTY_TWO_HOURS);
+    const task = hibernated.tasks[TUTORIAL_COMPLEX_TASK_ID]!;
+
+    // El rollover diario devuelve las tareas al Plano Maestro; el escenario de
+    // regreso completa una tarea que el usuario ya tenía En Obra.
+    return {
+      ...hibernated,
+      tasks: {
+        ...hibernated.tasks,
+        [TUTORIAL_COMPLEX_TASK_ID]: { ...task, boardStatus: 'IN_CONSTRUCTION' },
+      },
+    };
+  }
+
+  it('completar un hábito devuelve la ciudad a ACTIVE y abre Arranque de Motores', async () => {
+    const { store } = await createHydratedStore({
+      now: () => RETURN_AT,
+      seed: hibernatedSeed(),
+    });
+
+    const result = await store.getState().completeHabitToday(TUTORIAL_HABIT_ID);
+
+    if (result.status !== 'COMPLETED') throw new Error('esperaba check-in');
+
+    const state = store.getState().state;
+
+    expect(state?.cityStatus).toBe('ACTIVE');
+    expect(state?.lastUserInteractionAt).toBe(RETURN_AT);
+    expect(state?.habits[TUTORIAL_HABIT_ID]?.status).toBe('ACTIVE');
+    expect(state?.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]?.reactivationPenaltyUntil).toBe(
+      RETURN_AT + 24 * 3_600_000,
+    );
+  });
+
+  it('completar una tarea también reactiva el barrio', async () => {
+    const { store } = await createHydratedStore({
+      now: () => RETURN_AT,
+      seed: hibernatedSeed(),
+    });
+
+    await store.getState().completeTask(TUTORIAL_COMPLEX_TASK_ID);
+
+    const state = store.getState().state;
+
+    expect(state?.cityStatus).toBe('ACTIVE');
+    expect(state?.tasks[TUTORIAL_COMPLEX_TASK_ID]?.boardStatus).toBe('COMPLETED');
+    expect(state?.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]?.reactivationPenaltyUntil).toBe(
+      RETURN_AT + 24 * 3_600_000,
+    );
+  });
+});
+
+describe('useGameStore — US-11 CA-04: Presión de Calderas libera la penalización', () => {
+  beforeEach(resetIndexedDB);
+
+  it('registrar agua hasta la meta anula el Arranque de Motores y lo persiste', async () => {
+    const seeded: GameState = (() => {
+      const state = createDayZeroState(NOW);
+      const neighborhood = state.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]!;
+
+      return {
+        ...state,
+        globals: {
+          ...state.globals,
+          aqueduct: { ...state.globals.aqueduct, dailyLiters: 1.5 },
+        },
+        neighborhoods: {
+          ...state.neighborhoods,
+          [TUTORIAL_NEIGHBORHOOD_ID]: {
+            ...neighborhood,
+            reactivationPenaltyUntil: NOW + 24 * 3_600_000,
+          },
+        },
+      };
+    })();
+
+    const { store, adapter } = await createHydratedStore({ now: () => NOW, seed: seeded });
+
+    await store.getState().registerWater(1);
+
+    const state = store.getState().state;
+
+    expect(state?.globals.aqueduct.dailyLiters).toBe(2);
+    expect(state?.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]?.reactivationPenaltyUntil).toBeNull();
+    expect(
+      (await adapter.loadState())?.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]?.reactivationPenaltyUntil,
+    ).toBeNull();
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'WATER_REGISTERED',
+    );
+
+    expect(events).toHaveLength(1);
+  });
+});
+
+describe('useGameStore — US-11 Fase 4: el tick declara la hibernación', () => {
+  beforeEach(resetIndexedDB);
+
+  it('hiberna la ciudad en el tick y emite CITY_HIBERNATED', async () => {
+    const returnAt = NOW + 100 * 3_600_000;
+    const { store, adapter } = await createHydratedStore({
+      now: () => returnAt,
+      seed: createDayZeroState(NOW),
+    });
+
+    await store.getState().tick();
+
+    expect(store.getState().state?.cityStatus).toBe('AUTO_PAUSED_HIBERNATION');
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'CITY_HIBERNATED',
+    );
+
+    expect(events).toHaveLength(1);
+  });
+});
+
+describe('useGameStore — US-11 CA-01: la actividad posterga la hibernación', () => {
+  beforeEach(resetIndexedDB);
+
+  it('cualquier acción del usuario renueva lastUserInteractionAt', async () => {
+    const { store } = await createHydratedStore({ seed: createDayZeroState(NOW) });
+
+    await store.getState().registerWater(1);
+
+    expect(store.getState().state?.lastUserInteractionAt).toBe(LATER);
   });
 });

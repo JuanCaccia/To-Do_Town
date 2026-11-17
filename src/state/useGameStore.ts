@@ -25,6 +25,7 @@ import { upgradeNeighborhoodInfrastructure } from '../core/rules/infrastructureU
 import type { InfrastructureUpgradeResult } from '../core/rules/infrastructureUpgrade';
 import { activateManualPause, resumeManualPause } from '../core/rules/manualPause';
 import type { ManualPauseResult } from '../core/rules/manualPause';
+import { reactivateNeighborhood } from '../core/rules/reactivation';
 import { createPomodoroPreset } from '../core/entities/pomodoroPreset';
 import type {
   NewPomodoroPresetInput,
@@ -137,7 +138,14 @@ export function createGameStore(deps: GameStoreDeps) {
      * así que no se pierde nada.
      */
     function requireSettledState(): GameState {
-      return settleCity(stateOrThrow(), deps.now());
+      const now = deps.now();
+      const settled = settleCity(stateOrThrow(), now);
+
+      // US-11 CA-01: toda acción del usuario cuenta como interacción. `tick`
+      // no pasa por acá, así que el latido técnico no posterga la hibernación.
+      return settled.lastUserInteractionAt === now
+        ? settled
+        : { ...settled, lastUserInteractionAt: now };
     }
 
     async function commit(next: GameState, type: string, payload: Record<string, unknown>) {
@@ -164,6 +172,16 @@ export function createGameStore(deps: GameStoreDeps) {
 
         // DEC-018: si ninguna regla mutó, no hay evento que escribir.
         if (next === current) {
+          return;
+        }
+
+        // US-11 CA-01: la hibernación es el hecho saliente del tick; se declara
+        // como tal aunque el mismo tick también haya rotado la jornada.
+        if (
+          current.cityStatus === 'ACTIVE' &&
+          next.cityStatus === 'AUTO_PAUSED_HIBERNATION'
+        ) {
+          await commit(next, 'CITY_HIBERNATED', { lastTickAt: next.lastTickAt });
           return;
         }
 
@@ -270,9 +288,16 @@ export function createGameStore(deps: GameStoreDeps) {
 
       async completeTask(taskId) {
         const current = requireSettledState();
-        const next = completeTask(current, taskId, deps.now());
+        const task = current.tasks[taskId];
+        const reactivated =
+          task === undefined
+            ? current
+            : reactivateNeighborhood(current, task.neighborhoodId, deps.now());
+        const next = completeTask(reactivated, taskId, deps.now());
 
-        if (next === current) {
+        // US-11 CA-02: la reactivación es parte del regreso, no del intento. Si
+        // la tarea no se completa, tampoco se commitea el despertar del barrio.
+        if (next === reactivated) {
           return;
         }
 
@@ -297,7 +322,13 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async completeHabitToday(habitId) {
-        const result = completeHabit(requireSettledState(), habitId, deps.now());
+        const settled = requireSettledState();
+        const habit = settled.habits[habitId];
+        const reactivated =
+          habit === undefined
+            ? settled
+            : reactivateNeighborhood(settled, habit.neighborhoodId, deps.now());
+        const result = completeHabit(reactivated, habitId, deps.now());
 
         if (result.status === 'REJECTED') {
           return result;
