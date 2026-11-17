@@ -6,6 +6,7 @@ import type {
   TimestampMs,
 } from '../types';
 import { HABIT_COINS_PER_HOUR, REACTIVATION_PENALTY_MULTIPLIER } from '../constants/economyConstants';
+import { creditCoins } from './coinCredit';
 import { getHabitEfficiencyBoundaries, getHabitEfficiencyRatio } from './habitEfficiency';
 
 const MS_PER_HOUR = 3_600_000;
@@ -35,19 +36,25 @@ export function settlePassiveProduction(state: GameState, now: TimestampMs): Gam
 
   for (const [id, neighborhood] of Object.entries(state.neighborhoods)) {
     const earned = neighborhoodYield(state.habits, id, neighborhood, intervalStart, now);
-    const accumulated = neighborhood.pendingCoinsRemainder + earned;
+    const credit = creditCoins(
+      neighborhood.treasuryCoins,
+      neighborhood.pendingCoinsRemainder,
+      earned,
+    );
 
-    if (accumulated === neighborhood.pendingCoinsRemainder) {
+    // Sin moneda ni fracción nueva no hay mutación: el latido no es evento (DEC-018).
+    if (
+      credit.creditedCoins === 0 &&
+      credit.pendingCoinsRemainder === neighborhood.pendingCoinsRemainder
+    ) {
       neighborhoods[id] = neighborhood;
       continue;
     }
 
-    const credited = Math.floor(accumulated);
-
     neighborhoods[id] = {
       ...neighborhood,
-      treasuryCoins: neighborhood.treasuryCoins + credited,
-      pendingCoinsRemainder: accumulated - credited,
+      treasuryCoins: credit.treasuryCoins,
+      pendingCoinsRemainder: credit.pendingCoinsRemainder,
     };
     changed = true;
   }
