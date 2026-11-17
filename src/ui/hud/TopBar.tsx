@@ -1,9 +1,13 @@
 import type { FormEvent, ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
+import { WATER_DAILY_HARD_CAP_LITERS } from '../../core/constants/economyConstants';
 import { FocusTimer } from './FocusTimer';
 import { BADGE, BUTTON_OUTLINE_ON_DARK, INPUT_ON_DARK } from './primitives';
+
+/** US-09 CA-01: el aviso de cupo es efímero, no una línea fija del chrome. */
+const TOAST_VISIBLE_MS = 4_000;
 
 interface TopBarProps {
   state: GameState;
@@ -46,6 +50,7 @@ export function TopBar({ state }: TopBarProps) {
   const registerPages = useGameStore((store) => store.registerPages);
   const [isReading, setIsReading] = useState(false);
   const [pages, setPages] = useState('');
+  const [toast, setToast] = useState<{ message: string; nonce: number } | null>(null);
   const { townHall, library, aqueduct } = state.globals;
 
   const parsedPages = Number.parseInt(pages, 10);
@@ -63,8 +68,23 @@ export function TopBar({ state }: TopBarProps) {
     if (result.status === 'READING_REGISTERED') {
       setPages('');
       setIsReading(false);
+
+      // El cupo diario nunca se muestra: sólo se avisa que hubo recorte.
+      if (result.creditedPages < parsedPages) {
+        setToast({ message: 'Cupo diario: no todas las páginas se acreditaron', nonce: Date.now() });
+      }
     }
   }
+
+  useEffect(() => {
+    if (toast === null) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => setToast(null), TOAST_VISIBLE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
 
   // The city-wide daily counter is derived, never stored: US-04 CA-03 defines
   // it literally as the sum of every neighborhood counter.
@@ -89,7 +109,7 @@ export function TopBar({ state }: TopBarProps) {
       />
       <Stat
         label="Acueducto"
-        value={`${aqueduct.dailyLiters.toFixed(1)}/${aqueduct.dailyTargetLiters.toFixed(1)}`}
+        value={`${aqueduct.dailyLiters.toFixed(1)}/${WATER_DAILY_HARD_CAP_LITERS.toFixed(1)}`}
         detail="L"
         controls={
           <div className="flex items-center gap-1.5">
@@ -163,6 +183,15 @@ export function TopBar({ state }: TopBarProps) {
           {state.cityStatus}
         </span>
       </div>
+
+      {toast !== null && (
+        <div
+          role="status"
+          className="fixed right-4 top-16 z-50 border border-pearl bg-black px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-pearl"
+        >
+          {toast.message}
+        </div>
+      )}
     </header>
   );
 }

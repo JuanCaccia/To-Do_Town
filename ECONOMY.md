@@ -85,7 +85,7 @@ Los minutos de Pomodoro se contabilizan en un **acumulador global diario de foco
 
 | Suministro Global | Acción de Entrada | Meta Diaria Sugerida | Tope Efectivo Diario (Hard Cap) | Efecto Mecánico Diario e Histórico |
 | :--- | :--- | :--- | :--- | :--- |
-| **Agua (Acueducto)** | `+0.5 L` / `+1.0 L` | `2.0 L` | **`3.0 L / día`** | `1.0L` = +1 tarea óptima y Pulso Verde Nv.1.<br>`2.0L` = +2 tareas óptimas, Pulso Verde pleno y anula *Arranque de Motores*.<br>Máximo `3.0L/día` sumables al histórico del Acueducto. |
+| **Agua (Acueducto)** | `+0.5 L` / `+1.0 L` | `2.0 L` | **`2.0 L / día`** | `1.0L` = +1 tarea óptima y Pulso Verde Nv.1.<br>`2.0L` = +2 tareas óptimas, Pulso Verde pleno y anula *Arranque de Motores*.<br>Máximo `2.0L/día` sumables al histórico del Acueducto (**DEC-021**: el cupo no supera la meta y el HUD muestra el cupo como denominador). |
 | **Lectura (Biblioteca)** | Input numérico | `20 - 30 págs` | **`150 págs / día`** | Cualquier ingreso superior a 150 páginas en un mismo día operativo acredita únicamente hasta el tope de `150 págs` en la Gran Biblioteca. |
 
 ---

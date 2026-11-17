@@ -444,7 +444,7 @@ El sistema debe calcular la generación pasiva de monedas y reducir gradualmente
 - **CA-03 → US-05 CA-02 (deuda aceptada, DEC-016):** `calculateTick` ya existe desde US-05 como orquestador de jornada (reciclaje nocturno y reset diario). Esta US **extiende esa misma función** con la liquidación de producción pasiva: no crea un segundo tick ni reimplementa la detección de cambio de día operativo.
 
 ### US-08 (usuario): Registro de Hidratación, Lectura y Sesiones de Foco `[DONE]`
-> **Alcance cerrado:** dominio + Fase 4. Los 4 CAs y las Pruebas 1-3 están implementados y validados a mano (2026-11-16), con 285 tests en el proyecto. El control Pomodoro ejecuta el **set completo**: 4 bloques de trabajo encadenados con sus descansos (`getBreakAfterWork` / `isPomodoroSetComplete`, funciones puras en `src/core`), cierra al completar `cyclesBeforeLongBreak` y sólo interrumpir un bloque de trabajo lo corta. El alta de presets (`+Preset`, CA-03) vive inline en la cinta negra y `useGameStore.createPreset` dejó de descartar `shortBreakMinutes`/`longBreakMinutes`. Un snapshot sembrado antes de que `PomodoroPreset` tuviera `id`/`name` se sanea en `normalizeSavedState`, de donde salían los chips en blanco que apuntaban siempre al preset de 25 min. **El foco todavía no paga monedas ni XP:** eso es US-09 CA-03/CA-04 (DEC-020), y las monedas que se mueven al terminar un bloque son producción pasiva de hábitos liquidada en `requireSettledState` (DEC-019).
+> **Alcance cerrado:** dominio + Fase 4. Los 4 CAs y las Pruebas 1-3 están implementados y validados a mano (2026-11-16), con 284 tests en el proyecto. El control Pomodoro ejecuta el **set completo**: 4 bloques de trabajo encadenados con sus descansos (`getBreakAfterWork` / `isPomodoroSetComplete`, funciones puras en `src/core`), cierra al completar `cyclesBeforeLongBreak` y sólo interrumpir un bloque de trabajo lo corta. El alta de presets (`+Preset`, CA-03) vive inline en la cinta negra y `useGameStore.createPreset` dejó de descartar `shortBreakMinutes`/`longBreakMinutes`. Un snapshot sembrado antes de que `PomodoroPreset` tuviera `id`/`name` se sanea en `normalizeSavedState`, de donde salían los chips en blanco que apuntaban siempre al preset de 25 min. **El foco todavía no paga monedas ni XP:** eso es US-09 CA-03/CA-04 (DEC-020), y las monedas que se mueven al terminar un bloque son producción pasiva de hábitos liquidada en `requireSettledState` (DEC-019).
 
 Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis sesiones de concentración asignadas a un barrio, para hacer evolucionar los edificios centrales de la ciudad y obtener recompensas por mi tiempo de estudio.   
 
@@ -502,16 +502,16 @@ Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis se
 
 
 
-### US-09 (sistema): Bonos Hídricos, Topes Diarios y Liquidación de Foco
+### US-09 (sistema): Bonos Hídricos, Topes Diarios y Liquidación de Foco `[IN PROGRESS]`
 Como sistema, necesito otorgar bonos de energía diaria cuando el usuario registra agua, aplicar topes diarios saludables y liquidar recompensas proporcionales cuando una sesión de foco termina o se interrumpe, para que el usuario vea reflejado su cuidado personal en el rendimiento de la ciudad sin perder el crédito por sesiones parciales.  
 
 
 #### Criterios de Aceptación:
 
-**CA-01: Tope Efectivo Diario (Hard Cap) en Hidratación (3.0 L) y Lectura (150 págs)**
+**CA-01: Tope Efectivo Diario (Hard Cap) en Hidratación (2.0 L, DEC-021) y Lectura (150 págs)**
 - Dado que los suministros globales autodeclarados poseen topes anti-exploit por día operativo,  
 - Cuando el usuario registra litros de agua o páginas leídas que harían superar el acumulado del día operativo actual por encima de 3.0 L de agua o 150 páginas,  
-- Entonces el motor recorta el incremento acreditable de modo que el aporte sumado a totalHistoricalLiters del Acueducto nunca supere 3.0 L en un mismo día operativo, y el aporte sumado a totalPagesRead de la Gran Biblioteca nunca supere 150 páginas en un mismo día operativo (reiniciando ambos cupos al cambiar de día operativo).  
+- Entonces el motor recorta el incremento acreditable de modo que el aporte sumado a totalHistoricalLiters del Acueducto nunca supere 2.0 L en un mismo día operativo (**DEC-021**: el cupo es igual a la meta diaria y el HUD lo muestra como denominador), y el aporte sumado a totalPagesRead de la Gran Biblioteca nunca supere 150 páginas en un mismo día operativo (reiniciando ambos cupos al cambiar de día operativo).  
 
 
 **CA-02: Bonos Sistémicos del Agua (Ampliación de Estamina y Presión de Calderas)**
@@ -529,7 +529,15 @@ Como sistema, necesito otorgar bonos de energía diaria cuando el usuario regist
 **CA-04: Liquidación Proporcional por Interrupción de Pomodoro (Regla del 80%)**
 - Dado que una sesión Pomodoro en curso de duración objetivo W se cancela o interrumpe antes de finalizar habiendo transcurrido t_transcurridos minutos (0 < t_transcurridos < W),  
 - Cuando el motor procesa la cancelación de la sesión,  
-- Entonces calcula los minutos efectivos como MinutosEfectivos = [t_transcurridos * 0.80] y los liquida aplicando exactamente la misma curva de fatiga diaria (F_día) del CA-03, sumando únicamente esos MinutosEfectivos al acumulador diario F_día.   
+- Entonces calcula los minutos efectivos como MinutosEfectivos = [t_transcurridos * 0.80] y los liquida aplicando exactamente la misma curva de fatiga diaria (F_día) del CA-03, sumando únicamente esos MinutosEfectivos al acumulador diario F_día.  
+
+#### Notas de implementación
+
+- **CA-01 → modelo del cupo de páginas:** `CentralLibrary.dailyPagesRead` es el acumulador del día operativo. Se incrementa dentro de `registerPageReading` (US-09 **extiende** la regla de US-08, mismo patrón que `calculateTick`/DEC-016) y se reinicia en `calculateTick`, al lado de `dailyLiters`. `applyWaterDailyCap` / `applyPageDailyCap` en `src/core/rules/dailyCaps.ts` son los dueños únicos del *hard cap* (DEC-020): recortan al remanente y devuelven la **misma referencia** cuando el cupo está agotado, para que el store no emita un evento sin mutación.
+- **CA-01 → UI:** el acumulador del día **no se muestra** en ninguna superficie. La TopBar sólo emite un aviso sin números (*"Cupo diario: no todas las páginas se acreditaron"*) cuando `creditedPages < páginas pedidas`. El agua recortada hoy es silenciosa: no hay aviso pedido.
+- **CA-01 → ripple:** `registerWaterIntake` pasa a recibir `number` en vez de `WaterIntakeAmount`, porque un recorte puede dejar una fracción (2.5 L + 1 L → 0.5 L acreditados). El tipo cerrado sigue siendo el de la UI y el store.
+- **CA-01 → snapshot legacy:** `normalizeSavedState` siembra `dailyPagesRead: 0` cuando el snapshot es anterior a este CA; sin eso el primer registro del día hacía `undefined + n = NaN` y envenenaba el cupo. 
+- **CA-02 → el bono ya estaba cubierto:** `getWaterBonusTasks` (`min(2, ⌊dailyLiters⌋)`) alimenta el cupo local y la Estamina Global desde US-05 CA-03/CA-04. Lo nuevo es `isWaterDailyTargetMet` + `clearReactivationPenaltiesAtWaterTarget` en `dailyCaps.ts`, compuestos dentro de `applyWaterDailyCap` para que el store no encadene reglas. `reactivationPenaltyUntil` sigue **sin productor**: escribirlo es US-11 CA-02, que consume el mismo predicado en vez de repetir la comparación.
 
 
 

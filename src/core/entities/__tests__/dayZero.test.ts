@@ -85,7 +85,7 @@ describe('createDayZeroState — US-00 CA-02: núcleo cívico en Nivel 1', () =>
   it('nace con la Gran Biblioteca en Nivel 1 y 0 páginas leídas', () => {
     const state = createDayZeroState(NOW);
 
-    expect(state.globals.library).toEqual({ level: 1, totalPagesRead: 0 });
+    expect(state.globals.library).toEqual({ level: 1, totalPagesRead: 0, dailyPagesRead: 0 });
   });
 
   it('nace con el Acueducto Central en Nivel 1, 0 litros y meta diaria de 2.0 L', () => {

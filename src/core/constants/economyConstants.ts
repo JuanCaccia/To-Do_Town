@@ -65,6 +65,15 @@ export const POMODORO_SHORT_BREAK_DIVISOR = 5;
 export const POMODORO_DEFAULT_CYCLES_BEFORE_LONG_BREAK = 4;
 
 /**
+ * US-09 CA-01 / DEC-021: cupos diarios anti-exploit de los suministros
+ * autodeclarados. El aporte que excede el remanente se recorta, nunca se
+ * rechaza. El agua topea en su meta diaria (2.0 L): el HUD muestra el cupo como
+ * denominador y no puede quedar por encima.
+ */
+export const WATER_DAILY_HARD_CAP_LITERS = 2;
+export const PAGES_DAILY_HARD_CAP = 150;
+
+/**
  * ECONOMY §5.1: umbrales de evolución de los edificios cívicos, medidos sobre el
  * acumulado **histórico** (nunca sobre el del día, que se reinicia en el corte).
  */
@@ -175,3 +184,4 @@ export const TASK_FATIGUE: TaskFatigueModel = {
   exhaustionMultiplier: 0.1,
   maxWaterBonusTasks: 2,
 };
+

@@ -58,6 +58,25 @@ describe('hydrateGameState — US-01 CA-03: hidratación en arranque', () => {
     expect(saved).toHaveLength(0);
   });
 
+  it('normaliza un barrio anterior a pendingCoinsRemainder y no envenena la tesorería', async () => {
+    const base = createDayZeroState(NOW);
+    const legacyNeighborhood = { ...base.neighborhoods['tutorial-neighborhood-id']! };
+    delete (legacyNeighborhood as Partial<Neighborhood>).pendingCoinsRemainder;
+    const legacy: GameState = {
+      ...base,
+      neighborhoods: { 'tutorial-neighborhood-id': legacyNeighborhood },
+    };
+    const { storage } = createInMemoryStorage(legacy);
+
+    const hydrated = await hydrateGameState(storage, NOW);
+    const settled = settlePassiveProduction(hydrated, NOW + 3_600_000);
+
+    expect(hydrated.neighborhoods['tutorial-neighborhood-id']?.pendingCoinsRemainder).toBe(0);
+    expect(
+      Number.isFinite(settled.neighborhoods['tutorial-neighborhood-id']?.treasuryCoins),
+    ).toBe(true);
+  });
+
   it('reconstruye id, nombre y descanso largo de presets sembrados antes de US-08 CA-03', async () => {
     const base = createDayZeroState(NOW);
     const legacyPresets = [
@@ -96,23 +115,21 @@ describe('hydrateGameState — US-01 CA-03: hidratación en arranque', () => {
     expect(saved).toHaveLength(0);
   });
 
-  it('normaliza un barrio anterior a pendingCoinsRemainder y no envenena la tesorería', async () => {
+  it('recorta un consumo diario de agua heredado por encima del cupo de 2.0 L (DEC-021)', async () => {
     const base = createDayZeroState(NOW);
-    const legacyNeighborhood = { ...base.neighborhoods['tutorial-neighborhood-id']! };
-    delete (legacyNeighborhood as Partial<Neighborhood>).pendingCoinsRemainder;
     const legacy: GameState = {
       ...base,
-      neighborhoods: { 'tutorial-neighborhood-id': legacyNeighborhood },
+      globals: {
+        ...base.globals,
+        aqueduct: { ...base.globals.aqueduct, dailyLiters: 3 },
+      },
     };
-    const { storage } = createInMemoryStorage(legacy);
+    const { storage, saved } = createInMemoryStorage(legacy);
 
     const hydrated = await hydrateGameState(storage, NOW);
-    const settled = settlePassiveProduction(hydrated, NOW + 3_600_000);
 
-    expect(hydrated.neighborhoods['tutorial-neighborhood-id']?.pendingCoinsRemainder).toBe(0);
-    expect(
-      Number.isFinite(settled.neighborhoods['tutorial-neighborhood-id']?.treasuryCoins),
-    ).toBe(true);
+    expect(hydrated.globals.aqueduct.dailyLiters).toBe(2);
+    expect(saved).toHaveLength(0);
   });
 
   it('repara una tesorería que ya quedó en NaN en el almacén', async () => {

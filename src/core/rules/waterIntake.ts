@@ -8,11 +8,15 @@ export type WaterIntakeAmount = 0.5 | 1;
 /**
  * Acredita agua declarada por el usuario en el Acueducto Central.
  *
- * Sin tope diario a propósito: el *hard cap* de 3.0 L/día es de US-09 CA-01 y lo
- * envuelve desde afuera (GOVERNANCE DEC-020). Sin `now`: el CA no tiene lógica
- * temporal, el reset del acumulado diario es de `calculateTick`.
+ * Recibe un número y no `WaterIntakeAmount`: US-09 CA-01 puede recortar un
+ * aporte de 1 L a una fracción (2.5 L consumidos dejan 0.5 L de remanente) y la
+ * regla no debe perder esa fracción. El tipo de la UI sigue siendo el cerrado.
+ *
+ * Sin tope diario a propósito: el *hard cap* de 2.0 L/día es de US-09 CA-01 y
+ * lo envuelve desde afuera (GOVERNANCE DEC-020). Sin `now`: el CA no tiene
+ * lógica temporal, el reset del acumulado diario es de `calculateTick`.
  */
-export function registerWaterIntake(state: GameState, amount: WaterIntakeAmount): GameState {
+export function registerWaterIntake(state: GameState, amount: number): GameState {
   const totalHistoricalLiters = state.globals.aqueduct.totalHistoricalLiters + amount;
 
   return {

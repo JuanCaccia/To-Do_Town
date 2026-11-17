@@ -27,6 +27,8 @@ export function calculateTick(state: GameState, now: TimestampMs): GameState {
     globals: {
       ...decayed.globals,
       aqueduct: { ...decayed.globals.aqueduct, dailyLiters: 0 },
+      // US-09 CA-01: el cupo de lectura también es del día operativo.
+      library: { ...decayed.globals.library, dailyPagesRead: 0 },
     },
     neighborhoods: recycleNeighborhoods(decayed.neighborhoods, operationalDay),
     tasks: recycleTasks(decayed.tasks),

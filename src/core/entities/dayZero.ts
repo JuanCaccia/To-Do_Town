@@ -43,7 +43,7 @@ export function createDayZeroState(now: TimestampMs): GameState {
     },
     globals: {
       townHall: { level: 1, qualityOfLifeXP: 0 },
-      library: { level: 1, totalPagesRead: 0 },
+      library: { level: 1, totalPagesRead: 0, dailyPagesRead: 0 },
       aqueduct: {
         level: 1,
         totalHistoricalLiters: 0,

@@ -30,9 +30,8 @@ import type {
 } from '../core/entities/pomodoroPreset';
 import { recordFocusSession } from '../core/rules/focusSession';
 import type { FocusSessionResult, NewFocusSessionInput } from '../core/rules/focusSession';
-import { registerPageReading } from '../core/rules/libraryReading';
-import type { LibraryReadingResult } from '../core/rules/libraryReading';
-import { registerWaterIntake } from '../core/rules/waterIntake';
+import type { PageCapResult } from '../core/rules/dailyCaps';
+import { applyPageDailyCap, applyWaterDailyCap } from '../core/rules/dailyCaps';
 import type { WaterIntakeAmount } from '../core/rules/waterIntake';
 import type {
   CityBlock,
@@ -88,7 +87,7 @@ export interface GameStoreState {
   moveHabit(habitId: EntityId, targetNeighborhoodId: EntityId): Promise<HabitRelocationResult>;
   retireHabitToMuseum(habitId: EntityId): Promise<HabitRetirementResult>;
   registerWater(amount: WaterIntakeAmount): Promise<void>;
-  registerPages(pages: number): Promise<LibraryReadingResult>;
+  registerPages(pages: number): Promise<PageCapResult>;
   createPreset(input: Omit<NewPomodoroPresetInput, 'id'>): Promise<PomodoroPresetCreationResult>;
   recordFocus(input: Omit<NewFocusSessionInput, 'id'>): Promise<FocusSessionResult>;
 }
@@ -346,19 +345,28 @@ export function createGameStore(deps: GameStoreDeps) {
       },
 
       async registerWater(amount) {
-        const next = registerWaterIntake(requireSettledState(), amount);
+        const cap = applyWaterDailyCap(requireSettledState(), amount);
 
-        await commit(next, 'WATER_REGISTERED', { amount });
+        // Cupo agotado: no hay mutación y por lo tanto tampoco evento.
+        if (cap.creditedLiters === 0) {
+          return;
+        }
+
+        await commit(cap.state, 'WATER_REGISTERED', { amount: cap.creditedLiters });
       },
 
       async registerPages(pages) {
-        const result = registerPageReading(requireSettledState(), pages);
+        const result = applyPageDailyCap(requireSettledState(), pages);
 
         if (result.status === 'REJECTED') {
           return result;
         }
 
-        await commit(result.state, 'PAGES_REGISTERED', { pages });
+        if (result.creditedPages === 0) {
+          return result;
+        }
+
+        await commit(result.state, 'PAGES_REGISTERED', { pages: result.creditedPages });
 
         return result;
       },

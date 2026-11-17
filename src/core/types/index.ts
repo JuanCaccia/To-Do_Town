@@ -43,6 +43,12 @@ export interface TownHall {
 export interface CentralLibrary {
   level: 1 | 2 | 3 | 4 | 5;
   totalPagesRead: number;
+  /**
+   * US-09 CA-01: páginas acreditadas en el día operativo actual. Sólo alimenta
+   * el cupo de 150 págs/día y se reinicia en el corte de jornada; ninguna
+   * superficie lo muestra (el HUD sólo avisa cuando un registro se recorta).
+   */
+  dailyPagesRead: number;
 }
 
 export interface CentralAqueduct {
@@ -149,5 +155,4 @@ export interface GameState {
   neighborhoods: Record<EntityId, Neighborhood>;
   habits: Record<EntityId, HabitBuilding>;
   tasks: Record<EntityId, OneOffTask>;
-  focusSessions: Record<EntityId, FocusSession>;
-}
+  focusSessions: Record<EntityId, FocusSession>;}

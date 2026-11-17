@@ -1,11 +1,18 @@
 import {
   POMODORO_DEFAULT_CYCLES_BEFORE_LONG_BREAK,
   POMODORO_SHORT_BREAK_DIVISOR,
+  WATER_DAILY_HARD_CAP_LITERS,
 } from '../core/constants/economyConstants';
 import { createDayZeroState } from '../core/entities/dayZero';
 import type { StoragePort } from '../core/ports/StoragePort';
-import type { GameState, Neighborhood, PomodoroPreset, TimestampMs } from '../core/types';
-
+import type {
+  CentralAqueduct,
+  CentralLibrary,
+  GameState,
+  Neighborhood,
+  PomodoroPreset,
+  TimestampMs,
+} from '../core/types';
 export async function hydrateGameState(storage: StoragePort, now: TimestampMs): Promise<GameState> {
   const saved = await storage.loadState();
 
@@ -35,6 +42,11 @@ function normalizeSavedState(saved: GameState): GameState {
   return {
     ...saved,
     focusSessions: saved.focusSessions ?? {},
+    globals: {
+      ...saved.globals,
+      aqueduct: normalizeAqueduct(saved.globals.aqueduct),
+      library: normalizeLibrary(saved.globals.library),
+    },
     neighborhoods: Object.fromEntries(
       Object.entries(saved.neighborhoods).map(([id, neighborhood]) => [
         id,
@@ -45,6 +57,33 @@ function normalizeSavedState(saved: GameState): GameState {
       ...saved.config,
       pomodoroPresets: saved.config.pomodoroPresets.map(normalizePomodoroPreset),
     },
+  };
+}
+
+/**
+ * DEC-021: el cupo de agua bajó de 3.0 L a 2.0 L. Un snapshot anterior puede
+ * traer 3.0 L consumidos y el HUD lo mostraría por encima de su propio cupo
+ * hasta el próximo corte de jornada. Se recorta en memoria, igual que el resto
+ * de esta normalización.
+ */
+function normalizeAqueduct(aqueduct: CentralAqueduct): CentralAqueduct {
+  return {
+    ...aqueduct,
+    dailyLiters: Number.isFinite(aqueduct.dailyLiters)
+      ? Math.min(aqueduct.dailyLiters, WATER_DAILY_HARD_CAP_LITERS)
+      : 0,
+  };
+}
+
+/**
+ * Un snapshot anterior a US-09 CA-01 no tiene `dailyPagesRead`. Sin este relleno
+ * el primer registro del día haría `undefined + n = NaN` y el cupo quedaría
+ * envenenado en silencio.
+ */
+function normalizeLibrary(library: CentralLibrary): CentralLibrary {
+  return {
+    ...library,
+    dailyPagesRead: Number.isFinite(library.dailyPagesRead) ? library.dailyPagesRead : 0,
   };
 }
 
