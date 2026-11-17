@@ -41,9 +41,14 @@ export function settlePassiveProduction(state: GameState, now: TimestampMs): Gam
       neighborhood.pendingCoinsRemainder,
       earned,
     );
+    // US-11 CA-03: al vencer la ventana se limpia aunque no haya monedas nuevas.
+    const penaltyExpired =
+      neighborhood.reactivationPenaltyUntil !== null && now >= neighborhood.reactivationPenaltyUntil;
 
-    // Sin moneda ni fracción nueva no hay mutación: el latido no es evento (DEC-018).
+    // Sin moneda, fracción nueva ni penalización vencida no hay mutación: el
+    // latido no es evento (DEC-018).
     if (
+      !penaltyExpired &&
       credit.creditedCoins === 0 &&
       credit.pendingCoinsRemainder === neighborhood.pendingCoinsRemainder
     ) {
@@ -55,6 +60,7 @@ export function settlePassiveProduction(state: GameState, now: TimestampMs): Gam
       ...neighborhood,
       treasuryCoins: credit.treasuryCoins,
       pendingCoinsRemainder: credit.pendingCoinsRemainder,
+      reactivationPenaltyUntil: penaltyExpired ? null : neighborhood.reactivationPenaltyUntil,
     };
     changed = true;
   }
@@ -73,6 +79,35 @@ function neighborhoodYield(
   start: TimestampMs,
   end: TimestampMs,
 ): number {
+  const penaltyUntil = neighborhood.reactivationPenaltyUntil;
+  const infrastructureLevel = neighborhood.infrastructureLevel;
+
+  if (penaltyUntil === null || penaltyUntil <= start) {
+    return fullYield(habits, neighborhoodId, infrastructureLevel, start, end);
+  }
+
+  // US-11 CA-03: el intervalo se parte en el borde real de la ventana; hasta
+  // ahí la tasa va a la mitad y después vuelve al 100%.
+  const penaltyEnd = Math.min(penaltyUntil, end);
+
+  return (
+    fullYield(habits, neighborhoodId, infrastructureLevel, start, penaltyEnd) *
+      REACTIVATION_PENALTY_MULTIPLIER +
+    fullYield(habits, neighborhoodId, infrastructureLevel, penaltyEnd, end)
+  );
+}
+
+function fullYield(
+  habits: GameState['habits'],
+  neighborhoodId: EntityId,
+  infrastructureLevel: Neighborhood['infrastructureLevel'],
+  start: TimestampMs,
+  end: TimestampMs,
+): number {
+  if (end <= start) {
+    return 0;
+  }
+
   let coins = 0;
 
   for (const habit of Object.values(habits)) {
@@ -80,13 +115,10 @@ function neighborhoodYield(
       continue;
     }
 
-    coins += habitCoins(habit, neighborhood.infrastructureLevel, start, end);
+    coins += habitCoins(habit, infrastructureLevel, start, end);
   }
 
-  const penalized =
-    neighborhood.reactivationPenaltyUntil !== null && neighborhood.reactivationPenaltyUntil > end;
-
-  return penalized ? coins * REACTIVATION_PENALTY_MULTIPLIER : coins;
+  return coins;
 }
 
 /**

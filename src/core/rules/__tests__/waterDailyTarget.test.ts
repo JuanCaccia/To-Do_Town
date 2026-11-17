@@ -27,9 +27,8 @@ function withWater(state: GameState, liters: number): GameState {
 }
 
 /**
- * US-11 CA-02 todavía no escribe `reactivationPenaltyUntil`: lo inyecta el test,
- * igual que `dailyCaps.test.ts` inyecta `dailyPagesRead`. El dueño de la
- * escritura es US-11; el dueño de liberarla contra la meta de agua es este CA.
+ * El test inyecta `reactivationPenaltyUntil` directamente para aislar la
+ * liberación contra la meta: quien lo escribe en producción es US-11 CA-02.
  */
 function withPenalty(state: GameState, neighborhoodId: string, until: TimestampMs | null): GameState {
   const neighborhood = state.neighborhoods[neighborhoodId]!;
