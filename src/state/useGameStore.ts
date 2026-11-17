@@ -10,7 +10,7 @@ import type { StoragePort } from '../core/ports/StoragePort';
 import type { UnitOfWorkPort } from '../core/ports/UnitOfWorkPort';
 import { levelNeighborhoodBlock } from '../core/rules/blockLeveling';
 import type { BlockLevelingResult } from '../core/rules/blockLeveling';
-import { calculateTick } from '../core/rules/calculateTick';
+import { calculateTick, settleCity } from '../core/rules/calculateTick';
 import { purchaseNeighborhoodDecoration } from '../core/rules/decorationPurchase';
 import type { DecorationPurchaseResult } from '../core/rules/decorationPurchase';
 import { completeHabit } from '../core/rules/habitCheckIn';
@@ -23,6 +23,8 @@ import { retireHabit } from '../core/rules/habitRetirement';
 import type { HabitRetirementResult } from '../core/rules/habitRetirement';
 import { upgradeNeighborhoodInfrastructure } from '../core/rules/infrastructureUpgrade';
 import type { InfrastructureUpgradeResult } from '../core/rules/infrastructureUpgrade';
+import { activateManualPause, resumeManualPause } from '../core/rules/manualPause';
+import type { ManualPauseResult } from '../core/rules/manualPause';
 import { createPomodoroPreset } from '../core/entities/pomodoroPreset';
 import type {
   NewPomodoroPresetInput,
@@ -43,8 +45,6 @@ import type {
   TaskWeight,
   TimestampMs,
 } from '../core/types';
-import { settlePassiveProduction } from '../core/rules/passiveProduction';
-import { applySafeFloor } from '../core/rules/habitDecay';
 import { hydrateGameState } from './hydrateGameState';
 
 export interface GameStoreDeps {
@@ -91,6 +91,8 @@ export interface GameStoreState {
   registerPages(pages: number): Promise<PageCapResult>;
   createPreset(input: Omit<NewPomodoroPresetInput, 'id'>): Promise<PomodoroPresetCreationResult>;
   recordFocus(input: Omit<NewFocusSessionInput, 'id'>): Promise<FocusSessionResult>;
+  pauseCity(reason: string): Promise<ManualPauseResult>;
+  resumeCity(): Promise<void>;
 }
 
 /**
@@ -135,10 +137,7 @@ export function createGameStore(deps: GameStoreDeps) {
      * así que no se pierde nada.
      */
     function requireSettledState(): GameState {
-      const current = stateOrThrow();
-      const now = deps.now();
-
-      return applySafeFloor(settlePassiveProduction(current, now), now);
+      return settleCity(stateOrThrow(), deps.now());
     }
 
     async function commit(next: GameState, type: string, payload: Record<string, unknown>) {
@@ -413,6 +412,29 @@ export function createGameStore(deps: GameStoreDeps) {
         });
 
         return { status: 'RECORDED', state: liquidated };
+      },
+
+      async pauseCity(reason) {
+        const result = activateManualPause(requireSettledState(), reason, deps.now());
+
+        if (result.status === 'REJECTED') {
+          return result;
+        }
+
+        await commit(result.state, 'CITY_PAUSED_MANUALLY', { reason });
+
+        return result;
+      },
+
+      async resumeCity() {
+        const current = requireSettledState();
+
+        // Sin pausa activa no hay reanudación: evita un evento fantasma.
+        if (current.cityStatus !== 'MANUAL_PAUSE') {
+          return;
+        }
+
+        await commit(resumeManualPause(current, deps.now()), 'CITY_RESUMED', {});
       },
     };
   });

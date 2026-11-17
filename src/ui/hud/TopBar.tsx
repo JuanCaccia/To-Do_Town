@@ -48,13 +48,34 @@ function Stat({
 export function TopBar({ state }: TopBarProps) {
   const registerWater = useGameStore((store) => store.registerWater);
   const registerPages = useGameStore((store) => store.registerPages);
+  const pauseCity = useGameStore((store) => store.pauseCity);
+  const resumeCity = useGameStore((store) => store.resumeCity);
   const [isReading, setIsReading] = useState(false);
+  const [isPausing, setIsPausing] = useState(false);
+  const [pauseReason, setPauseReason] = useState('');
   const [pages, setPages] = useState('');
   const [toast, setToast] = useState<{ message: string; nonce: number } | null>(null);
   const { townHall, library, aqueduct } = state.globals;
 
   const parsedPages = Number.parseInt(pages, 10);
   const isPageCountValid = Number.isInteger(parsedPages) && parsedPages > 0 && String(parsedPages) === pages.trim();
+
+  const isPauseReasonValid = pauseReason.trim().length > 0;
+
+  async function submitPause(event: FormEvent) {
+    event.preventDefault();
+
+    if (isPauseReasonValid === false) {
+      return;
+    }
+
+    const result = await pauseCity(pauseReason);
+
+    if (result.status === 'PAUSED') {
+      setPauseReason('');
+      setIsPausing(false);
+    }
+  }
 
   async function submitPages(event: FormEvent) {
     event.preventDefault();
@@ -174,7 +195,7 @@ export function TopBar({ state }: TopBarProps) {
       <Stat label="Tareas Hoy" value={String(tasksToday)} />
       <Stat label="Pomodoro" value="" controls={<FocusTimer state={state} />} />
 
-      <div className="ml-auto flex items-center px-4">
+      <div className="ml-auto flex flex-wrap items-center gap-2 px-4 py-2">
         <span
           className={`${BADGE} ${
             isActive ? 'border-red-800 bg-red-950/40 text-red-400' : 'text-neutral-400'
@@ -182,6 +203,65 @@ export function TopBar({ state }: TopBarProps) {
         >
           {state.cityStatus}
         </span>
+
+        {isActive &&
+          (isPausing ? (
+            <form className="flex items-center gap-1.5" onSubmit={(event) => void submitPause(event)}>
+              <input
+                className={`${INPUT_ON_DARK} w-44`}
+                type="text"
+                autoFocus
+                maxLength={80}
+                placeholder="MOTIVO"
+                aria-label="Motivo de la pausa"
+                value={pauseReason}
+                onChange={(event) => setPauseReason(event.target.value)}
+              />
+              <button
+                type="submit"
+                className={BUTTON_OUTLINE_ON_DARK}
+                disabled={isPauseReasonValid === false}
+              >
+                Confirmar
+              </button>
+              <button
+                type="button"
+                className={BUTTON_OUTLINE_ON_DARK}
+                onClick={() => {
+                  setPauseReason('');
+                  setIsPausing(false);
+                }}
+              >
+                Cancelar
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              className={BUTTON_OUTLINE_ON_DARK}
+              onClick={() => setIsPausing(true)}
+            >
+              Pausar Ciudad
+            </button>
+          ))}
+
+        {state.cityStatus === 'MANUAL_PAUSE' && (
+          <>
+            <span
+              className="max-w-[18rem] truncate font-mono text-[10px] uppercase tracking-widest text-neutral-300"
+              title={state.manualPauseReason}
+            >
+              Pausa: {state.manualPauseReason}
+            </span>
+            <button
+              type="button"
+              className={BUTTON_OUTLINE_ON_DARK}
+              onClick={() => void resumeCity()}
+            >
+              Reanudar Ciudad
+            </button>
+          </>
+        )}
       </div>
 
       {toast !== null && (

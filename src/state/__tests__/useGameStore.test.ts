@@ -588,3 +588,66 @@ describe('useGameStore — US-07 CA-04: piso seguro antes de cualquier mutación
     expect(events[0]?.payload).not.toHaveProperty('coins');
   });
 });
+
+describe('useGameStore — US-10 Fase 4: pausa manual consciente', () => {
+  beforeEach(resetIndexedDB);
+
+  it('pausa la ciudad con motivo, persiste el snapshot y emite el evento', async () => {
+    const { store, adapter } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedWithoutProduction(NOW),
+    });
+
+    const result = await store.getState().pauseCity('Semana de finales');
+
+    if (result.status !== 'PAUSED') throw new Error('esperaba pausa');
+
+    const state = store.getState().state;
+
+    expect(state?.cityStatus).toBe('MANUAL_PAUSE');
+    expect(state?.manualPauseReason).toBe('Semana de finales');
+    expect((await adapter.loadState())?.cityStatus).toBe('MANUAL_PAUSE');
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'CITY_PAUSED_MANUALLY',
+    );
+
+    expect(events).toHaveLength(1);
+  });
+
+  it('un motivo vacío se rechaza sin mutar el snapshot ni escribir evento', async () => {
+    const { store, adapter } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedWithoutProduction(NOW),
+    });
+    const before = store.getState().state;
+
+    const result = await store.getState().pauseCity('   ');
+
+    expect(result).toEqual({ status: 'REJECTED', reason: 'EMPTY_REASON' });
+    expect(store.getState().state).toBe(before);
+    expect(await adapter.listPendingEvents()).toHaveLength(0);
+  });
+
+  it('reanuda la ciudad limpiando motivo y penalización, y emite el evento', async () => {
+    const { store, adapter } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedWithoutProduction(NOW),
+    });
+
+    await store.getState().pauseCity('Semana de finales');
+    await store.getState().resumeCity();
+
+    const state = store.getState().state;
+
+    expect(state?.cityStatus).toBe('ACTIVE');
+    expect(state?.manualPauseReason).toBeUndefined();
+    expect(state?.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]?.reactivationPenaltyUntil).toBeNull();
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'CITY_RESUMED',
+    );
+
+    expect(events).toHaveLength(1);
+  });
+});

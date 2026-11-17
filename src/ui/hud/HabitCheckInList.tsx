@@ -3,10 +3,11 @@ import type { HabitCheckInRejection } from '../../core/rules/habitCheckIn';
 import type { EntityId, GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { formatHabitFrequency, isCompletedOnCurrentOperationalDay } from './habitPresentation';
-import { BADGE_ON_LIGHT, BUTTON_PRIMARY_ON_LIGHT, SectionLabel } from './primitives';
+import { BADGE_ON_LIGHT, BUTTON_PRIMARY_ON_LIGHT, NOTICE_ON_LIGHT, SectionLabel } from './primitives';
 
 const CHECK_IN_REJECTION_TEXT = {
   HABIT_NOT_FOUND: 'El hábito ya no existe.',
+  CITY_PAUSED: 'La ciudad está en pausa. Reanudala para completar hábitos.',
   HABIT_NOT_ACTIVE: 'El hábito no está activo.',
   ALREADY_COMPLETED_TODAY: 'El hábito ya se cumplió hoy.',
 } as const satisfies Record<HabitCheckInRejection, string>;
@@ -24,6 +25,8 @@ export function HabitCheckInList({ state }: { state: GameState }) {
   const [pendingId, setPendingId] = useState<EntityId | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  const isPaused = state.cityStatus !== 'ACTIVE';
+
   const habits = Object.entries(state.habits).filter(
     ([, habit]) => habit.status === 'ACTIVE',
   );
@@ -40,6 +43,11 @@ export function HabitCheckInList({ state }: { state: GameState }) {
     <div>
       <div className="px-4 pt-4">
         <SectionLabel>Hábitos de Hoy</SectionLabel>
+        {isPaused && (
+          <p className={`mt-2 ${NOTICE_ON_LIGHT}`}>
+            Ciudad en pausa. Reanudala para completar hábitos.
+          </p>
+        )}
       </div>
 
       <ul>
@@ -68,7 +76,7 @@ export function HabitCheckInList({ state }: { state: GameState }) {
               <div className="mt-3">
                 <button
                   type="button"
-                  disabled={isDoneToday || pendingId !== null}
+                  disabled={isDoneToday || pendingId !== null || isPaused}
                   onClick={() => void handleCheckIn(habitId)}
                   className={`${BUTTON_PRIMARY_ON_LIGHT} px-3 py-1.5`}
                 >
