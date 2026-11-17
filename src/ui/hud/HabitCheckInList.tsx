@@ -25,10 +25,11 @@ export function HabitCheckInList({ state }: { state: GameState }) {
   const [pendingId, setPendingId] = useState<EntityId | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const isPaused = state.cityStatus !== 'ACTIVE';
+  const isManuallyPaused = state.cityStatus === 'MANUAL_PAUSE';
+  const isHibernated = state.cityStatus === 'AUTO_PAUSED_HIBERNATION';
 
   const habits = Object.entries(state.habits).filter(
-    ([, habit]) => habit.status === 'ACTIVE',
+    ([, habit]) => habit.status !== 'RETIRED_TO_MUSEUM',
   );
 
   async function handleCheckIn(habitId: EntityId) {
@@ -43,9 +44,14 @@ export function HabitCheckInList({ state }: { state: GameState }) {
     <div>
       <div className="px-4 pt-4">
         <SectionLabel>Hábitos de Hoy</SectionLabel>
-        {isPaused && (
+        {isManuallyPaused && (
           <p className={`mt-2 ${NOTICE_ON_LIGHT}`}>
             Ciudad en pausa. Reanudala para completar hábitos.
+          </p>
+        )}
+        {isHibernated && (
+          <p className={`mt-2 ${NOTICE_ON_LIGHT}`}>
+            Ciudad hibernada. Cumplí un hábito para reactivar el barrio.
           </p>
         )}
       </div>
@@ -65,7 +71,12 @@ export function HabitCheckInList({ state }: { state: GameState }) {
             <li key={habitId} className={ROW}>
               <div className="flex items-start justify-between gap-2">
                 <span className="text-sm font-bold text-black">{habit.title}</span>
-                <span className={BADGE_ON_LIGHT}>NV.{habit.checkpointLevel}</span>
+                <span className="flex items-start gap-1">
+                  {habit.status === 'PAUSED' && (
+                    <span className={BADGE_ON_LIGHT}>En Pausa</span>
+                  )}
+                  <span className={BADGE_ON_LIGHT}>NV.{habit.checkpointLevel}</span>
+                </span>
               </div>
 
               <div className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
@@ -76,7 +87,7 @@ export function HabitCheckInList({ state }: { state: GameState }) {
               <div className="mt-3">
                 <button
                   type="button"
-                  disabled={isDoneToday || pendingId !== null || isPaused}
+                  disabled={isDoneToday || pendingId !== null || isManuallyPaused}
                   onClick={() => void handleCheckIn(habitId)}
                   className={`${BUTTON_PRIMARY_ON_LIGHT} px-3 py-1.5`}
                 >

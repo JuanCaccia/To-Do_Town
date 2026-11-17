@@ -79,7 +79,8 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
   const selectedNeighborhoodId = neighborhoodId === '' ? (neighborhoodIds[0] ?? '') : neighborhoodId;
 
   const tasks = Object.entries(state.tasks).filter(([, task]) => task.boardStatus === tab);
-  const isPaused = state.cityStatus !== 'ACTIVE';
+  const isManuallyPaused = state.cityStatus === 'MANUAL_PAUSE';
+  const isHibernated = state.cityStatus === 'AUTO_PAUSED_HIBERNATION';
 
   const globalTasksCompletedCount = Object.values(state.neighborhoods).reduce(
     (total, neighborhood) => total + neighborhood.dailyTasksCompletedCount,
@@ -153,9 +154,14 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {isPaused && (
+        {isManuallyPaused && (
           <p className={`mx-4 mt-3 ${NOTICE_ON_LIGHT}`}>
             Ciudad en pausa. Reanudala para completar tareas.
+          </p>
+        )}
+        {isHibernated && (
+          <p className={`mx-4 mt-3 ${NOTICE_ON_LIGHT}`}>
+            Ciudad hibernada. Completá una tarea para reactivar el barrio.
           </p>
         )}
 
@@ -217,7 +223,7 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
                     <>
                       <button
                         type="button"
-                        disabled={isPaused}
+                        disabled={isManuallyPaused}
                         onClick={() => void completeTask(taskId)}
                         className="rounded-none border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:border-neutral-400 disabled:bg-neutral-400 disabled:text-neutral-600 disabled:hover:bg-neutral-400"
                       >
