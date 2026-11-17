@@ -55,6 +55,11 @@ export function moveTask(
 }
 
 export function completeTask(state: GameState, taskId: EntityId, now: TimestampMs): GameState {
+  // US-10 CA-02: con la ciudad pausada no se completa nada; misma referencia.
+  if (state.cityStatus !== 'ACTIVE') {
+    return state;
+  }
+
   const task = state.tasks[taskId];
 
   if (task === undefined || task.boardStatus !== 'IN_CONSTRUCTION') {

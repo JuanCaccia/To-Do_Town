@@ -1,4 +1,5 @@
 import type { GameState, Neighborhood, OneOffTask, TimestampMs } from '../types';
+import { getCityNow } from './cityClock';
 import { getOperationalDay } from './dayCycle';
 import { applySafeFloor } from './habitDecay';
 import { settlePassiveProduction } from './passiveProduction';
@@ -13,8 +14,9 @@ import { settlePassiveProduction } from './passiveProduction';
  * no es evento de negocio.
  */
 export function calculateTick(state: GameState, now: TimestampMs): GameState {
-  const settled = settlePassiveProduction(state, now);
-  const decayed = applySafeFloor(settled, now);
+  // US-10 CA-02: durante la pausa el reloj de la ciudad no avanza: liquidación y
+  // caída se evalúan en el instante de pausa, no en el `now` de pared.
+  const decayed = settleCity(state, now);
   const operationalDay = getOperationalDay(now, state.config.dayCycle);
 
   if (operationalDay === decayed.lastOperationalDay) {
@@ -35,6 +37,18 @@ export function calculateTick(state: GameState, now: TimestampMs): GameState {
     neighborhoods: recycleNeighborhoods(decayed.neighborhoods, operationalDay),
     tasks: recycleTasks(decayed.tasks),
   };
+}
+
+/**
+ * Liquidación completa de la ciudad en su reloj operativo (US-10 CA-02,
+ * DEC-019). `getCityNow` congela el tiempo durante la pausa, así que este es el
+ * único lugar donde el congelamiento y el orden producción → piso seguro viven
+ * juntos: tick y acciones no pueden divergir.
+ */
+export function settleCity(state: GameState, now: TimestampMs): GameState {
+  const cityNow = getCityNow(state, now);
+
+  return applySafeFloor(settlePassiveProduction(state, cityNow), cityNow);
 }
 
 function recycleNeighborhoods(

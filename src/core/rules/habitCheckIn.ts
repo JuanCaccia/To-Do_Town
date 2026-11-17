@@ -5,6 +5,7 @@ import { withQualityOfLifeXp } from './townHallLevel';
 
 export type HabitCheckInRejection =
   | 'HABIT_NOT_FOUND'
+  | 'CITY_PAUSED'
   | 'HABIT_NOT_ACTIVE'
   | 'ALREADY_COMPLETED_TODAY';
 
@@ -21,6 +22,11 @@ export function completeHabit(
 
   if (habit === undefined) {
     return { status: 'REJECTED', reason: 'HABIT_NOT_FOUND' };
+  }
+
+  // US-10 CA-02: la pausa congela la ciudad; ninguna acción la puede completar.
+  if (state.cityStatus !== 'ACTIVE') {
+    return { status: 'REJECTED', reason: 'CITY_PAUSED' };
   }
 
   if (habit.status !== 'ACTIVE') {

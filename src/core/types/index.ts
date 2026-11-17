@@ -139,6 +139,8 @@ export interface FocusSession {
 
 export interface GameState {
   cityStatus: 'ACTIVE' | 'MANUAL_PAUSE' | 'AUTO_PAUSED_HIBERNATION';
+  /** US-10 CA-01: motivo declarado al pausar a mano; `undefined` si está activa. */
+  manualPauseReason?: string;
   lastTickAt: TimestampMs;
   lastUserInteractionAt: TimestampMs;
   lastOperationalDay: string;
