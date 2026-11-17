@@ -42,6 +42,9 @@ function normalizeSavedState(saved: GameState): GameState {
   return {
     ...saved,
     focusSessions: saved.focusSessions ?? {},
+    // US-09 CA-03: sin este relleno, el primer pomodoro de un snapshot anterior
+    // haría `undefined + n = NaN` y envenenaría `F_día` hasta el corte.
+    dailyFocusMinutes: Number.isFinite(saved.dailyFocusMinutes) ? saved.dailyFocusMinutes : 0,
     globals: {
       ...saved.globals,
       aqueduct: normalizeAqueduct(saved.globals.aqueduct),

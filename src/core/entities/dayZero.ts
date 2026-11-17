@@ -111,5 +111,6 @@ export function createDayZeroState(now: TimestampMs): GameState {
       },
     },
     focusSessions: {},
+    dailyFocusMinutes: 0,
   };
 }

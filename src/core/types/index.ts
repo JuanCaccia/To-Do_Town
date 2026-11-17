@@ -155,4 +155,11 @@ export interface GameState {
   neighborhoods: Record<EntityId, Neighborhood>;
   habits: Record<EntityId, HabitBuilding>;
   tasks: Record<EntityId, OneOffTask>;
-  focusSessions: Record<EntityId, FocusSession>;}
+  focusSessions: Record<EntityId, FocusSession>;
+  /**
+   * US-09 CA-03: `F_día`, minutos efectivos de foco acumulados en el día
+   * operativo actual. Alimenta la curva de fatiga mental y se reinicia en el
+   * corte de jornada (`calculateTick`).
+   */
+  dailyFocusMinutes: number;
+}

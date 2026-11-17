@@ -185,3 +185,35 @@ export const TASK_FATIGUE: TaskFatigueModel = {
   maxWaterBonusTasks: 2,
 };
 
+export interface FocusCurveModel {
+  optimalMinuteLimit: number;
+  fatigueMinuteLimit: number;
+  optimalCoinsPerMinute: number;
+  fatigueCoinsPerMinute: number;
+  exhaustionCoinsPerMinute: number;
+  optimalXpBlockMinutes: number;
+  fatigueXpBlockMinutes: number;
+  /**
+   * US-09 CA-04: la regla del 80% en forma racional, igual que
+   * `getHabitEfficiencyRatio`. Multiplicar por `0.8` en coma flotante redondea
+   * el producto y un minuto entero puede caer al tramo de abajo.
+   */
+  interruptionRetained: { numerator: number; denominator: number };
+}
+
+/**
+ * ECONOMY §2.4 / US-09 CA-03: curva de fatiga mental diaria sobre `F_día`.
+ *
+ * Los topes de XP del CA (20 en Foco Óptimo, 10 en Fatiga) no son constantes:
+ * salen del cociente entre la duración del tramo y su bloque de XP.
+ */
+export const FOCUS_CURVE: FocusCurveModel = {
+  optimalMinuteLimit: 100,
+  fatigueMinuteLimit: 200,
+  optimalCoinsPerMinute: 2,
+  fatigueCoinsPerMinute: 1,
+  exhaustionCoinsPerMinute: 0.2,
+  optimalXpBlockMinutes: 5,
+  fatigueXpBlockMinutes: 10,
+  interruptionRetained: { numerator: 4, denominator: 5 },
+};

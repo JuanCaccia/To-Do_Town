@@ -503,6 +503,7 @@ Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis se
 
 
 ### US-09 (sistema): Bonos Hídricos, Topes Diarios y Liquidación de Foco `[IN PROGRESS]`
+> **Estado (2026-11-17):** los 4 CAs están verdes en **dominio** (316 tests). Falta la Fase 4 del slice: `recordFocus` encadenando la liquidación en el mismo commit y el HUD mostrando las recompensas derivadas (incluida la advertencia del 80 % al cancelar).
 Como sistema, necesito otorgar bonos de energía diaria cuando el usuario registra agua, aplicar topes diarios saludables y liquidar recompensas proporcionales cuando una sesión de foco termina o se interrumpe, para que el usuario vea reflejado su cuidado personal en el rendimiento de la ciudad sin perder el crédito por sesiones parciales.  
 
 
@@ -538,6 +539,9 @@ Como sistema, necesito otorgar bonos de energía diaria cuando el usuario regist
 - **CA-01 → ripple:** `registerWaterIntake` pasa a recibir `number` en vez de `WaterIntakeAmount`, porque un recorte puede dejar una fracción (2.5 L + 1 L → 0.5 L acreditados). El tipo cerrado sigue siendo el de la UI y el store.
 - **CA-01 → snapshot legacy:** `normalizeSavedState` siembra `dailyPagesRead: 0` cuando el snapshot es anterior a este CA; sin eso el primer registro del día hacía `undefined + n = NaN` y envenenaba el cupo. 
 - **CA-02 → el bono ya estaba cubierto:** `getWaterBonusTasks` (`min(2, ⌊dailyLiters⌋)`) alimenta el cupo local y la Estamina Global desde US-05 CA-03/CA-04. Lo nuevo es `isWaterDailyTargetMet` + `clearReactivationPenaltiesAtWaterTarget` en `dailyCaps.ts`, compuestos dentro de `applyWaterDailyCap` para que el store no encadene reglas. `reactivationPenaltyUntil` sigue **sin productor**: escribirlo es US-11 CA-02, que consume el mismo predicado en vez de repetir la comparación.
+- **CA-03 → acumulador y XP derivado:** `GameState.dailyFocusMinutes` es `F_día` (se reinicia en `calculateTick` y `normalizeSavedState` lo siembra en 0 para snapshots anteriores). `liquidateFocus` parte la sesión por intersección con cada tramo y paga cada minuto a su tarifa. El XP **no se guarda**: es `⌊min(F,100)/5⌋ + ⌊min(max(F−100,0),100)/10⌋` y se acredita por diferencia entre el acumulado de después y el de antes; guardar "XP ya otorgado" aparte sería una segunda fuente de verdad que puede divergir. Los topes 20 / 10 del CA no son constantes: salen del cociente entre la duración del tramo y su bloque de XP. Las fracciones de Agotamiento (0.2/min) van al `pendingCoinsRemainder` del barrio a través de `coinCredit.ts`, el mismo dueño del redondeo que usa la producción pasiva.
+- **CA-04 → el 80 % es de la liquidación, no del registro:** `recordFocusSession` (US-08, en verde) conserva `focusMinutes` crudos; `liquidateFocusSession` aplica la regla en forma **racional** (4/5, `FOCUS_CURVE.interruptionRetained`) sobre esos minutos y delega en `liquidateFocus`. Multiplicar por `0.8` en coma flotante puede tirar un minuto entero al tramo de abajo. Una interrupción cuyo 80 % no alcanza el minuto devuelve la misma referencia: se registra la sesión, no se liquida nada.
+- **Pendiente de Fase 4 (slice):** `recordFocus` del store todavía no encadena la liquidación; debe hacerlo en el **mismo commit** que el registro (DEC-019), no en dos escrituras. El evento `FOCUS_SESSION_RECORDED` no lleva `coins`/`xp`: el HUD los deriva del estado.
 
 
 

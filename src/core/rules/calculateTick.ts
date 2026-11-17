@@ -24,6 +24,8 @@ export function calculateTick(state: GameState, now: TimestampMs): GameState {
   return {
     ...decayed,
     lastOperationalDay: operationalDay,
+    // US-09 CA-03: `F_día` también es del día operativo.
+    dailyFocusMinutes: 0,
     globals: {
       ...decayed.globals,
       aqueduct: { ...decayed.globals.aqueduct, dailyLiters: 0 },
