@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getBreakAfterWork, isPomodoroSetComplete } from '../../core/entities/pomodoroCycle';
+import { getFocusTier } from '../../core/rules/focusLiquidation';
+import type { FocusTier } from '../../core/rules/focusLiquidation';
 import type { GameState, PomodoroPreset } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { PomodoroPresetForm } from './PomodoroPresetForm';
@@ -22,6 +24,16 @@ const BLOCK_LABEL: Record<BlockKind, string> = {
   WORK: 'Foco',
   SHORT_BREAK: 'Descanso',
   LONG_BREAK: 'Descanso largo',
+};
+
+/**
+ * US-09 CA-03: la leyenda deriva el tramo de `F_día` en vez de guardarlo. El
+ * umbral vive en `getFocusTier`; acá sólo hay etiquetas.
+ */
+const FOCUS_TIER_LABEL: Record<FocusTier, string> = {
+  OPTIMAL: 'Óptimo',
+  FATIGUE: 'Fatiga',
+  EXHAUSTION: 'Agotamiento',
 };
 
 interface FocusTimerProps {
@@ -275,7 +287,9 @@ export function FocusTimer({ state }: FocusTimerProps) {
         {preset !== undefined && (
           <span className="ml-1 text-neutral-500">
             {preset.name}
-            {isWorkBlock ? ` · B${workBlocksCompleted + 1}/${preset.cyclesBeforeLongBreak}` : ''}
+            {isWorkBlock
+              ? ` · B${workBlocksCompleted + 1}/${preset.cyclesBeforeLongBreak} · F ${state.dailyFocusMinutes} ${FOCUS_TIER_LABEL[getFocusTier(state.dailyFocusMinutes)]}`
+              : ''}
           </span>
         )}
       </span>

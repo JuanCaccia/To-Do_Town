@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDayZeroState } from '../../entities/dayZero';
 import type { GameState, TimestampMs } from '../../types';
 import { calculateTick } from '../calculateTick';
-import { liquidateFocus } from '../focusLiquidation';
+import { liquidateFocus, getFocusTier } from '../focusLiquidation';
 
 const NOW: TimestampMs = 1_700_000_000_000;
 const MS_PER_HOUR = 3_600_000;
@@ -116,5 +116,15 @@ describe('calculateTick — US-09 CA-03: F_día se reinicia en el corte de jorna
     const next = calculateTick(state, NOW + 48 * MS_PER_HOUR);
 
     expect(focusMinutesOf(next)).toBe(0);
+  });
+});
+
+describe('getFocusTier — US-09 CA-03: tramo del siguiente minuto', () => {
+  it('reporta el tramo del próximo minuto, no el del último cobrado', () => {
+    expect(getFocusTier(0)).toBe('OPTIMAL');
+    expect(getFocusTier(99)).toBe('OPTIMAL');
+    expect(getFocusTier(100)).toBe('FATIGUE');
+    expect(getFocusTier(199)).toBe('FATIGUE');
+    expect(getFocusTier(200)).toBe('EXHAUSTION');
   });
 });

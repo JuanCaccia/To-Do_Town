@@ -71,6 +71,28 @@ export function liquidateFocus(
   };
 }
 
+export type FocusTier = 'OPTIMAL' | 'FATIGUE' | 'EXHAUSTION';
+
+/**
+ * Tramo que le toca al **próximo** minuto (US-09 CA-03).
+ *
+ * Es una derivación de `FOCUS_CURVE`, no un dato guardado: el HUD la usa para
+ * mostrar en qué tramo está la ciudad sin repetir los umbrales. `F_día = 100`
+ * significa que los 100 minutos óptimos ya se cobraron, así que el siguiente
+ * minuto cae en Fatiga.
+ */
+export function getFocusTier(dailyFocusMinutes: number): FocusTier {
+  if (dailyFocusMinutes < FOCUS_CURVE.optimalMinuteLimit) {
+    return 'OPTIMAL';
+  }
+
+  if (dailyFocusMinutes < FOCUS_CURVE.fatigueMinuteLimit) {
+    return 'FATIGUE';
+  }
+
+  return 'EXHAUSTION';
+}
+
 /**
  * Liquida la sesión de foco ya registrada (US-09 CA-03/CA-04).
  *

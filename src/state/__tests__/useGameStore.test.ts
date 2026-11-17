@@ -554,4 +554,37 @@ describe('useGameStore — US-07 CA-04: piso seguro antes de cualquier mutación
 
     expect(events).toHaveLength(1);
   });
+
+  it('liquida la sesión de foco en el mismo commit que el registro (US-09 CA-03)', async () => {
+    const { store, adapter } = await createHydratedStore({
+      now: () => NOW,
+      seed: seedWithoutProduction(NOW),
+    });
+    const treasuryBefore =
+      store.getState().state?.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]?.treasuryCoins ?? 0;
+
+    const result = await store.getState().recordFocus({
+      neighborhoodId: TUTORIAL_NEIGHBORHOOD_ID,
+      presetId: 'pomodoro-25-5',
+      startedAt: NOW,
+      endedAt: NOW + 25 * 60_000,
+      outcome: 'COMPLETED',
+    });
+
+    if (result.status !== 'RECORDED') throw new Error('esperaba registro');
+
+    const state = store.getState().state;
+
+    // 25 min óptimos: 50 🪙 al barrio y 5 XP al Ayuntamiento.
+    expect(state?.neighborhoods[TUTORIAL_NEIGHBORHOOD_ID]?.treasuryCoins).toBe(treasuryBefore + 50);
+    expect(state?.globals.townHall.qualityOfLifeXP).toBe(5);
+    expect(state?.dailyFocusMinutes).toBe(25);
+
+    const events = (await adapter.listPendingEvents()).filter(
+      (event) => event.type === 'FOCUS_SESSION_RECORDED',
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.payload).not.toHaveProperty('coins');
+  });
 });

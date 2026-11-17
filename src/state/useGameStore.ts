@@ -28,6 +28,7 @@ import type {
   NewPomodoroPresetInput,
   PomodoroPresetCreationResult,
 } from '../core/entities/pomodoroPreset';
+import { liquidateFocusSession } from '../core/rules/focusLiquidation';
 import { recordFocusSession } from '../core/rules/focusSession';
 import type { FocusSessionResult, NewFocusSessionInput } from '../core/rules/focusSession';
 import type { PageCapResult } from '../core/rules/dailyCaps';
@@ -392,21 +393,26 @@ export function createGameStore(deps: GameStoreDeps) {
 
       async recordFocus(input) {
         const focusSessionId = deps.idPort.generateId();
-        const result = recordFocusSession(requireSettledState(), { ...input, id: focusSessionId });
+        const recorded = recordFocusSession(requireSettledState(), { ...input, id: focusSessionId });
 
-        if (result.status === 'REJECTED') {
-          return result;
+        if (recorded.status === 'REJECTED') {
+          return recorded;
         }
 
-        await commit(result.state, 'FOCUS_SESSION_RECORDED', {
+        // US-09 CA-03/CA-04: la liquidación va en el MISMO commit que el
+        // registro (DEC-019). Dos escrituras dejarían una sesión cobrada sin
+        // evento —o al revés— si la segunda falla.
+        const liquidated = liquidateFocusSession(recorded.state, focusSessionId);
+
+        await commit(liquidated, 'FOCUS_SESSION_RECORDED', {
           focusSessionId,
           neighborhoodId: input.neighborhoodId,
           presetId: input.presetId,
           outcome: input.outcome,
-          focusMinutes: result.state.focusSessions[focusSessionId]?.focusMinutes,
+          focusMinutes: recorded.state.focusSessions[focusSessionId]?.focusMinutes,
         });
 
-        return result;
+        return { status: 'RECORDED', state: liquidated };
       },
     };
   });
