@@ -4,6 +4,7 @@ import type { HabitCreationRejection } from '../../core/entities/habit';
 import type { HabitRetirementRejection } from '../../core/rules/habitRetirement';
 import type { EntityId, GameState, HabitFrequency } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
+import { Combo } from './Combo';
 import { HabitMoveFlow } from './HabitMoveFlow';
 import {
   countOccupiedProductiveLots,
@@ -167,7 +168,7 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
                   onClick={() => void handleRetire(habitId)}
                   className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
                 >
-                  🏛️ Retirar con Honores al Museo
+                  Retirar al Museo
                 </button>
               </div>
 
@@ -232,19 +233,20 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
               >
                 Veces por Semana
               </label>
-              <select
+              <Combo
                 id={`habit-times-per-week-${neighborhoodId}`}
-                value={timesPerWeek}
-                onChange={(event) => setTimesPerWeek(Number(event.target.value))}
+                ariaLabel="Veces por semana"
+                value={String(timesPerWeek)}
+                options={TIMES_PER_WEEK_COUNTS.map((count) => ({
+                  value: String(count),
+                  label: String(count),
+                }))}
+                onChange={(next) => setTimesPerWeek(Number(next))}
+                direction="up"
+                tone="light"
                 disabled={lotsFull}
-                className="rounded-none border border-black/30 bg-transparent px-2 py-1.5 font-mono text-[10px] uppercase tracking-widest text-black focus:border-black focus:outline-none disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-500"
-              >
-                {TIMES_PER_WEEK_COUNTS.map((count) => (
-                  <option key={count} value={count}>
-                    {count}
-                  </option>
-                ))}
-              </select>
+                className="w-20"
+              />
             </div>
           )}
 

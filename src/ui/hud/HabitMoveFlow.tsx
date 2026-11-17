@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { HabitRelocationRejection } from '../../core/rules/habitRelocation';
 import type { EntityId, GameState, HabitBuilding } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
+import { Combo } from './Combo';
 import { BUTTON_OUTLINE_ON_LIGHT, BUTTON_PRIMARY_ON_LIGHT } from './primitives';
 
 const RELOCATION_REJECTION_TEXT = {
@@ -96,19 +97,19 @@ export function HabitMoveFlow({ state, habitId, habit, onDone }: HabitMoveFlowPr
             Barrio destino
           </label>
 
-          <select
+          <Combo
             id={`habit-move-target-${habitId}`}
+            ariaLabel="Barrio destino"
             value={targetId}
-            onChange={(event) => setTargetId(event.target.value)}
-            className="mt-2 w-full rounded-none border border-black/30 bg-transparent px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-black focus:border-black focus:outline-none"
-          >
-            <option value="">Elegí un barrio</option>
-            {targets.map(([id, neighborhood]) => (
-              <option key={id} value={id}>
-                {neighborhood.name}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: 'Elegí un barrio' },
+              ...targets.map(([id, neighborhood]) => ({ value: id, label: neighborhood.name })),
+            ]}
+            onChange={setTargetId}
+            direction="up"
+            tone="light"
+            className="mt-2"
+          />
 
           <div className="mt-3 flex flex-wrap gap-2">
             <button

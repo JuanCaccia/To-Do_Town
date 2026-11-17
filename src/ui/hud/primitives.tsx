@@ -102,6 +102,10 @@ export const BADGE =
 export const BADGE_ON_LIGHT =
   'inline-block rounded-none border border-black/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-neutral-600';
 
+/** Inline notice on a pearl surface: 1px block, no third surface. */
+export const NOTICE_ON_LIGHT =
+  'border border-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-black';
+
 /** Primary action on the black canvas (the drawer launcher). */
 export const BUTTON_PRIMARY_ON_DARK =
   'rounded-none border border-pearl bg-pearl px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-pearl';
@@ -113,11 +117,7 @@ export const BUTTON_PRIMARY_ON_DARK =
 export const BUTTON_OUTLINE_ON_DARK =
   'rounded-none border border-pearl px-4 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-600 disabled:text-neutral-500 disabled:hover:bg-transparent disabled:hover:text-neutral-500';
 
-/**
- * Combo on the black chrome. Es un `<select>` nativo: la lista la dibuja el
- * sistema operativo, así que sólo se controla la caja cerrada — que es lo que el
- * usuario ve el 99% del tiempo.
- */
+/** Caja cerrada del combo sobre el chrome negro (la lista la dibuja `Combo`). */
 export const SELECT_ON_DARK =
   'rounded-none border border-neutral-600 bg-black px-2 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:border-pearl focus:border-pearl focus:outline-none';
 
@@ -133,7 +133,7 @@ export const INPUT_ON_DARK =
 export const CHIP_ON_DARK_IDLE =
   'rounded-none border border-neutral-600 px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-neutral-300 transition-colors hover:border-pearl hover:text-pearl';
 
-/** Combo on a pearl surface: borde negro pleno, sin radio, mono en versalitas. */
+/** Caja cerrada del combo sobre una superficie perla: borde negro pleno, sin radio. */
 export const SELECT_ON_LIGHT =
   'rounded-none border border-black bg-transparent px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-black transition-colors hover:border-neutral-600 focus:border-black focus:outline-none';
 
@@ -175,3 +175,10 @@ export const COMBO_OPTION_DARK_ACTIVE = 'bg-pearl text-black';
 export const COMBO_OPTION_DARK_IDLE = 'text-pearl hover:bg-pearl hover:text-black';
 export const COMBO_OPTION_LIGHT_ACTIVE = 'bg-black text-pearl';
 export const COMBO_OPTION_LIGHT_IDLE = 'text-black hover:bg-black hover:text-pearl';
+/**
+ * El combo inhabilitado se lee igual que un input inhabilitado del mismo panel.
+ * Es una clase completa, no un añadido sobre `SELECT_ON_LIGHT`: apilar dos
+ * bordes de Tailwind deja el resultado en manos del orden del CSS.
+ */
+export const COMBO_TRIGGER_DISABLED_ON_LIGHT =
+  'rounded-none border border-neutral-300 bg-transparent px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-neutral-500 cursor-not-allowed';

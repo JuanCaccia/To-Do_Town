@@ -10,6 +10,7 @@ import {
   COMBO_OPTION_LIGHT_ACTIVE,
   COMBO_OPTION_LIGHT_IDLE,
   COMBO_TRIGGER,
+  COMBO_TRIGGER_DISABLED_ON_LIGHT,
   SELECT_ON_DARK,
   SELECT_ON_LIGHT,
 } from './primitives';
@@ -28,6 +29,9 @@ interface ComboProps {
   /** `up` para controles al pie de un panel; `down` para la cinta superior. */
   direction?: 'up' | 'down';
   tone: 'dark' | 'light';
+  /** Permite que un `<label htmlFor>` del panel apunte al disparador. */
+  id?: string;
+  disabled?: boolean;
   className?: string;
 }
 
@@ -46,6 +50,8 @@ export function Combo({
   onChange,
   direction = 'down',
   tone,
+  id,
+  disabled = false,
   className = '',
 }: ComboProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -83,16 +89,25 @@ export function Combo({
 
   const listTone = tone === 'dark' ? COMBO_LIST_DARK : COMBO_LIST_LIGHT;
   const position = direction === 'up' ? 'bottom-full mb-1' : 'top-full mt-1';
+  const triggerTone = disabled
+    ? tone === 'light'
+      ? COMBO_TRIGGER_DISABLED_ON_LIGHT
+      : `${SELECT_ON_DARK} cursor-not-allowed`
+    : tone === 'dark'
+      ? SELECT_ON_DARK
+      : SELECT_ON_LIGHT;
 
   return (
     <div ref={wrapperRef} className={`relative min-w-0 ${className}`}>
       <button
+        id={id}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={isOpen ? listboxId : undefined}
-        className={`${tone === 'dark' ? SELECT_ON_DARK : SELECT_ON_LIGHT} ${COMBO_TRIGGER}`}
+        disabled={disabled}
+        className={`${triggerTone} ${COMBO_TRIGGER}`}
         onClick={() => setIsOpen((open) => !open)}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
