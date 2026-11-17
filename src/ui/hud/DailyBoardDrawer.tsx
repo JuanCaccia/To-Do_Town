@@ -4,6 +4,7 @@ import { TASK_REWARDS } from '../../core/constants/economyConstants';
 import { getTaskFatigueMultiplier } from '../../core/rules/taskFatigue';
 import type { GameState, TaskWeight } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
+import { Combo } from './Combo';
 import { HabitCheckInList } from './HabitCheckInList';
 import {
   BADGE_ON_LIGHT,
@@ -248,29 +249,27 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
         />
 
         <div className="flex gap-2">
-          <select
+          <Combo
+            ariaLabel="Barrio de la tarea"
             value={selectedNeighborhoodId}
-            onChange={(event) => setNeighborhoodId(event.target.value)}
-            className="min-w-0 flex-1 rounded-none border border-black/30 bg-transparent px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-black focus:border-black focus:outline-none"
-          >
-            {neighborhoodIds.map((id) => (
-              <option key={id} value={id}>
-                {state.neighborhoods[id]?.name ?? id}
-              </option>
-            ))}
-          </select>
+            options={neighborhoodIds.map((id) => ({
+              value: id,
+              label: state.neighborhoods[id]?.name ?? id,
+            }))}
+            onChange={setNeighborhoodId}
+            direction="up"
+            tone="light"
+            className="flex-1"
+          />
 
-          <select
+          <Combo
+            ariaLabel="Peso de la tarea"
             value={weight}
-            onChange={(event) => setWeight(event.target.value as TaskWeight)}
-            className="rounded-none border border-black/30 bg-transparent px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-black focus:border-black focus:outline-none"
-          >
-            {TASK_WEIGHTS.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
+            options={TASK_WEIGHTS.map((value) => ({ value, label: value }))}
+            onChange={(nextWeight) => setWeight(nextWeight as TaskWeight)}
+            direction="up"
+            tone="light"
+          />
         </div>
 
         <button

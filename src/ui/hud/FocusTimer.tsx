@@ -1,17 +1,28 @@
-import { useEffect, useState } from 'react';
-import type { GameState } from '../../core/types';
+import { useEffect, useRef, useState } from 'react';
+import { getBreakAfterWork, isPomodoroSetComplete } from '../../core/entities/pomodoroCycle';
+import type { GameState, PomodoroPreset } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
-import {
-  BUTTON_OUTLINE_ON_DARK,
-  BUTTON_PRIMARY_ON_DARK,
-  CHIP_ON_DARK_ACTIVE,
-  CHIP_ON_DARK_IDLE,
-} from './primitives';
+import { PomodoroPresetForm } from './PomodoroPresetForm';
+import { Combo } from './Combo';
+import { BUTTON_OUTLINE_ON_DARK, BUTTON_PRIMARY_ON_DARK, CHIP_ON_DARK_IDLE } from './primitives';
 
 const MILLISECONDS_PER_MINUTE = 60_000;
 
 /** US-08 CA-04: interrumpir por debajo de este umbral no registra nada. */
 const MINIMUM_INTERRUPTED_MINUTES = 1;
+
+type BlockKind = 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK';
+
+interface ActiveBlock {
+  kind: BlockKind;
+  minutes: number;
+}
+
+const BLOCK_LABEL: Record<BlockKind, string> = {
+  WORK: 'Foco',
+  SHORT_BREAK: 'Descanso',
+  LONG_BREAK: 'Descanso largo',
+};
 
 interface FocusTimerProps {
   state: GameState;
@@ -20,10 +31,15 @@ interface FocusTimerProps {
 /**
  * Reloj Pomodoro de la Barra Superior (US-08 CA-04).
  *
- * El cronómetro es estado efímero de la vista: el dominio solo ve sesiones
- * terminadas, con `startedAt`/`endedAt` reales. Por eso recargar la página
- * pierde una sesión en curso, que es preferible a inventar minutos que no
+ * El cronómetro y el bloque en curso son estado efímero de la vista: el dominio
+ * solo ve sesiones de **trabajo** terminadas, con `startedAt`/`endedAt` reales.
+ * Los descansos no liquidan nada, así que no tocan `GameState`; recargar la
+ * página pierde el bloque en curso, que es preferible a inventar minutos que no
  * transcurrieron.
+ *
+ * Qué descanso sigue lo decide `getBreakAfterWork` en `src/core`, no este
+ * componente: el ciclo trabajo/descanso es una regla del preset, no un detalle
+ * de render.
  *
  * La advertencia de interrupción es **inline y sobre negro**, no un modal: un
  * panel perla nuevo sería la cuarta superficie y `UI_DESIGN.md` §7 auditoría 8
@@ -36,18 +52,23 @@ export function FocusTimer({ state }: FocusTimerProps) {
 
   const [neighborhoodId, setNeighborhoodId] = useState(neighborhoods[0] ?? '');
   const [presetId, setPresetId] = useState(presets[0]?.id ?? '');
+  const [block, setBlock] = useState<ActiveBlock | null>(null);
+  const [workBlocksCompleted, setWorkBlocksCompleted] = useState(0);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+  const isCompletingRef = useRef(false);
 
   const preset = presets.find((candidate) => candidate.id === presetId);
-  const targetMs = (preset?.workMinutes ?? 0) * MILLISECONDS_PER_MINUTE;
+  const targetMs = (block?.minutes ?? 0) * MILLISECONDS_PER_MINUTE;
   const elapsedMinutes = Math.floor(elapsedMs / MILLISECONDS_PER_MINUTE);
   const elapsedSeconds = Math.floor(elapsedMs / 1_000);
   const clockMinutes = Math.floor(elapsedSeconds / 60);
   const clockSeconds = elapsedSeconds % 60;
   const clock = `${String(clockMinutes).padStart(2, '0')}:${String(clockSeconds).padStart(2, '0')}`;
-  const canInterrupt = elapsedMinutes >= MINIMUM_INTERRUPTED_MINUTES;
+  const isWorkBlock = block?.kind === 'WORK';
+  const canInterrupt = isWorkBlock === false || elapsedMinutes >= MINIMUM_INTERRUPTED_MINUTES;
 
   useEffect(() => {
     if (startedAt === null) {
@@ -64,59 +85,149 @@ export function FocusTimer({ state }: FocusTimerProps) {
       return;
     }
 
-    void finish('COMPLETED', startedAt + targetMs);
-    // `finish` closes over the current selection; the guard above keeps this
-    // effect from firing outside an active session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elapsedMs, startedAt, targetMs]);
-
-  async function finish(outcome: 'COMPLETED' | 'INTERRUPTED', endedAt: number) {
-    if (startedAt === null) {
+    // El reloj sigue latiendo mientras `recordFocus` persiste: sin esta guarda,
+    // el mismo bloque se liquidaría una vez por segundo hasta que cambie el
+    // estado, duplicando la sesión y adelantando el ciclo de más.
+    if (isCompletingRef.current) {
       return;
     }
 
-    await recordFocus({ neighborhoodId, presetId, startedAt, endedAt, outcome });
-    setStartedAt(null);
-    setElapsedMs(0);
-    setIsConfirming(false);
+    isCompletingRef.current = true;
+    void completeBlock().finally(() => {
+      isCompletingRef.current = false;
+    });
+    // `completeBlock` closes over the current block; the guard above keeps this
+    // effect from firing outside a running block.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elapsedMs, startedAt, targetMs]);
+
+  async function completeBlock() {
+    if (startedAt === null || block === null) {
+      return;
+    }
+
+    if (block.kind !== 'WORK') {
+      startNextWorkBlock();
+      return;
+    }
+
+    if (preset === undefined) {
+      return;
+    }
+
+    const nextWorkBlocks = workBlocksCompleted + 1;
+
+    await recordFocus({
+      neighborhoodId,
+      presetId,
+      startedAt,
+      endedAt: startedAt + targetMs,
+      outcome: 'COMPLETED',
+    });
+
+    setWorkBlocksCompleted(nextWorkBlocks);
+    startBlock(breakBlockFor(preset, nextWorkBlocks));
   }
 
-  function start() {
+  function breakBlockFor(current: PomodoroPreset, completedWorkBlocks: number): ActiveBlock {
+    const nextBreak = getBreakAfterWork(current, completedWorkBlocks);
+
+    return { kind: nextBreak.kind, minutes: nextBreak.minutes };
+  }
+
+  /**
+   * El ciclo encadena solo mientras el set siga abierto: trabajo → descanso →
+   * trabajo. Saltear el descanso no termina el Pomodoro, sólo adelanta el
+   * siguiente bloque; al cerrar los `cyclesBeforeLongBreak` bloques el set
+   * termina y hay que iniciar uno nuevo.
+   */
+  function startNextWorkBlock() {
+    if (preset === undefined || isPomodoroSetComplete(preset, workBlocksCompleted)) {
+      endCycle();
+      return;
+    }
+
+    startBlock({ kind: 'WORK', minutes: preset.workMinutes });
+  }
+
+  function startBlock(next: ActiveBlock) {
+    setBlock(next);
     setStartedAt(Date.now());
     setElapsedMs(0);
     setIsConfirming(false);
   }
 
-  if (startedAt === null) {
+  function endCycle() {
+    setBlock(null);
+    setStartedAt(null);
+    setElapsedMs(0);
+  }
+
+  async function interrupt() {
+    if (startedAt === null || block === null) {
+      return;
+    }
+
+    setIsConfirming(false);
+
+    if (block.kind !== 'WORK') {
+      startNextWorkBlock();
+      return;
+    }
+
+    await recordFocus({ neighborhoodId, presetId, startedAt, endedAt: Date.now(), outcome: 'INTERRUPTED' });
+    endCycle();
+  }
+
+  function start() {
+    if (preset === undefined) {
+      return;
+    }
+
+    // Iniciar abre un set nuevo: el contador de bloques anteriores pertenecía al
+    // set que ya cerró (o al que se interrumpió).
+    setWorkBlocksCompleted(0);
+    startBlock({ kind: 'WORK', minutes: preset.workMinutes });
+  }
+
+  if (block === null) {
+    if (isComposing) {
+      return (
+        <PomodoroPresetForm
+          onCreated={(createdPresetId) => {
+            setPresetId(createdPresetId);
+            setWorkBlocksCompleted(0);
+            setIsComposing(false);
+          }}
+          onCancel={() => setIsComposing(false)}
+        />
+      );
+    }
+
     return (
       <div className="flex flex-wrap items-center gap-1.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {neighborhoods.map((id) => (
-            <button
-              key={id}
-              type="button"
-              className={id === neighborhoodId ? CHIP_ON_DARK_ACTIVE : CHIP_ON_DARK_IDLE}
-              aria-pressed={id === neighborhoodId}
-              onClick={() => setNeighborhoodId(id)}
-            >
-              {state.neighborhoods[id]?.name ?? id}
-            </button>
-          ))}
-        </div>
-        <span aria-hidden className="h-6 w-px bg-neutral-800" />
-        <div className="flex flex-wrap items-center gap-1.5">
-          {presets.map((candidate) => (
-            <button
-              key={candidate.id}
-              type="button"
-              className={candidate.id === presetId ? CHIP_ON_DARK_ACTIVE : CHIP_ON_DARK_IDLE}
-              aria-pressed={candidate.id === presetId}
-              onClick={() => setPresetId(candidate.id)}
-            >
-              {candidate.name}
-            </button>
-          ))}
-        </div>
+        <Combo
+          ariaLabel="Barrio destino del foco"
+          value={neighborhoodId}
+          options={neighborhoods.map((id) => ({
+            value: id,
+            label: state.neighborhoods[id]?.name ?? id,
+          }))}
+          onChange={setNeighborhoodId}
+          tone="dark"
+          className="max-w-[9rem]"
+        />
+        <Combo
+          ariaLabel="Preset Pomodoro"
+          value={presetId}
+          options={presets.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
+          onChange={(nextPresetId) => {
+            setPresetId(nextPresetId);
+            setWorkBlocksCompleted(0);
+          }}
+          tone="dark"
+          className="max-w-[9rem]"
+        />
         <button
           type="button"
           className={BUTTON_OUTLINE_ON_DARK}
@@ -124,6 +235,14 @@ export function FocusTimer({ state }: FocusTimerProps) {
           disabled={preset === undefined || neighborhoodId === ''}
         >
           Iniciar
+        </button>
+        <button
+          type="button"
+          className={CHIP_ON_DARK_IDLE}
+          onClick={() => setIsComposing(true)}
+          aria-label="Crear preset Pomodoro"
+        >
+          +Preset
         </button>
       </div>
     );
@@ -142,11 +261,7 @@ export function FocusTimer({ state }: FocusTimerProps) {
         >
           Seguir
         </button>
-        <button
-          type="button"
-          className={BUTTON_PRIMARY_ON_DARK}
-          onClick={() => void finish('INTERRUPTED', Date.now())}
-        >
+        <button type="button" className={BUTTON_PRIMARY_ON_DARK} onClick={() => void interrupt()}>
           Cortar
         </button>
       </div>
@@ -155,19 +270,28 @@ export function FocusTimer({ state }: FocusTimerProps) {
 
   return (
     <div className="flex items-center gap-1.5">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
+        {BLOCK_LABEL[block.kind]}
+        {preset !== undefined && (
+          <span className="ml-1 text-neutral-500">
+            {preset.name}
+            {isWorkBlock ? ` · B${workBlocksCompleted + 1}/${preset.cyclesBeforeLongBreak}` : ''}
+          </span>
+        )}
+      </span>
       <span className="font-mono text-base font-bold leading-none text-pearl">
         {clock}
         <span className="ml-0.5 text-[10px] font-normal uppercase tracking-widest text-neutral-400">
-          /{preset?.workMinutes ?? 0}
+          /{block.minutes}
         </span>
       </span>
       <button
         type="button"
-        className={BUTTON_OUTLINE_ON_DARK}
-        onClick={() => setIsConfirming(true)}
-        disabled={canInterrupt === false}
+        className={isWorkBlock ? BUTTON_OUTLINE_ON_DARK : BUTTON_PRIMARY_ON_DARK}
+        onClick={() => (isWorkBlock ? setIsConfirming(true) : void interrupt())}
+        disabled={isWorkBlock && canInterrupt === false}
       >
-        Cancelar
+        {isWorkBlock ? 'Cancelar' : 'Saltar'}
       </button>
     </div>
   );

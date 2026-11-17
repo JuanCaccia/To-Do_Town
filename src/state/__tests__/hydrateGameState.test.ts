@@ -58,6 +58,44 @@ describe('hydrateGameState — US-01 CA-03: hidratación en arranque', () => {
     expect(saved).toHaveLength(0);
   });
 
+  it('reconstruye id, nombre y descanso largo de presets sembrados antes de US-08 CA-03', async () => {
+    const base = createDayZeroState(NOW);
+    const legacyPresets = [
+      { workMinutes: 25, shortBreakMinutes: 5, cyclesBeforeLongBreak: 4 },
+      { workMinutes: 50, shortBreakMinutes: 15, cyclesBeforeLongBreak: 4 },
+    ];
+    const legacy: GameState = {
+      ...base,
+      config: {
+        ...base.config,
+        pomodoroPresets: legacyPresets as unknown as GameState['config']['pomodoroPresets'],
+      },
+    };
+    const { storage, saved } = createInMemoryStorage(legacy);
+
+    const hydrated = await hydrateGameState(storage, NOW);
+
+    expect(hydrated.config.pomodoroPresets).toEqual([
+      {
+        id: 'pomodoro-25-5',
+        name: '25/5',
+        workMinutes: 25,
+        shortBreakMinutes: 5,
+        cyclesBeforeLongBreak: 4,
+        longBreakMinutes: null,
+      },
+      {
+        id: 'pomodoro-50-15',
+        name: '50/15',
+        workMinutes: 50,
+        shortBreakMinutes: 15,
+        cyclesBeforeLongBreak: 4,
+        longBreakMinutes: null,
+      },
+    ]);
+    expect(saved).toHaveLength(0);
+  });
+
   it('normaliza un barrio anterior a pendingCoinsRemainder y no envenena la tesorería', async () => {
     const base = createDayZeroState(NOW);
     const legacyNeighborhood = { ...base.neighborhoods['tutorial-neighborhood-id']! };

@@ -113,6 +113,14 @@ export const BUTTON_PRIMARY_ON_DARK =
 export const BUTTON_OUTLINE_ON_DARK =
   'rounded-none border border-pearl px-4 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-600 disabled:text-neutral-500 disabled:hover:bg-transparent disabled:hover:text-neutral-500';
 
+/**
+ * Combo on the black chrome. Es un `<select>` nativo: la lista la dibuja el
+ * sistema operativo, así que sólo se controla la caja cerrada — que es lo que el
+ * usuario ve el 99% del tiempo.
+ */
+export const SELECT_ON_DARK =
+  'rounded-none border border-neutral-600 bg-black px-2 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:border-pearl focus:border-pearl focus:outline-none';
+
 /** Numeric input on the black chrome. Focus is never removed, only recoloured. */
 export const INPUT_ON_DARK =
   'rounded-none border border-neutral-400 bg-transparent px-2 py-2 font-mono text-base font-bold leading-none text-pearl placeholder:text-neutral-500 focus:border-pearl focus:outline-none';
@@ -122,11 +130,12 @@ export const INPUT_ON_DARK =
  * never by a third grey, and the active one has no hover: a toggle that inverts
  * back under the pointer stops reading as selected.
  */
-export const CHIP_ON_DARK_ACTIVE =
-  'rounded-none border border-pearl bg-pearl px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-black transition-colors';
-
 export const CHIP_ON_DARK_IDLE =
   'rounded-none border border-neutral-600 px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-neutral-300 transition-colors hover:border-pearl hover:text-pearl';
+
+/** Combo on a pearl surface: borde negro pleno, sin radio, mono en versalitas. */
+export const SELECT_ON_LIGHT =
+  'rounded-none border border-black bg-transparent px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-black transition-colors hover:border-neutral-600 focus:border-black focus:outline-none';
 
 /** Primary action on a pearl surface: a solid black block, the maximum contrast available there. */export const BUTTON_PRIMARY_ON_LIGHT =
   'rounded-none border border-black bg-black px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-400 disabled:bg-neutral-400 disabled:text-neutral-600';
@@ -143,3 +152,26 @@ export const TAB_ITEM_IDLE = 'text-neutral-600 hover:text-black';
 /** Secondary action on a pearl surface. */
 export const BUTTON_OUTLINE_ON_LIGHT =
   'rounded-none border border-black px-4 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-pearl disabled:cursor-not-allowed disabled:border-neutral-400 disabled:text-neutral-600 disabled:hover:bg-transparent disabled:hover:text-neutral-600';
+
+/**
+ * Combo desplegable del sistema Odyssey: la caja cerrada es idéntica a un
+ * `select` nativo del chrome, pero la lista la dibujamos nosotros para que
+ * respete la geometría (radio cero, sin sombras) y para poder abrirla hacia
+ * arriba cuando el control vive al pie de un panel.
+ *
+ * Los colores viven acá y no en el componente para que la auditoría de
+ * superficie única (UI_DESIGN §7.8) siga contando exactamente tres `bg-pearl`
+ * fuera de este archivo.
+ */
+export const COMBO_TRIGGER = 'flex w-full items-center justify-between gap-2';
+export const COMBO_CARET = 'text-[8px] leading-none';
+export const COMBO_LIST =
+  'absolute left-0 z-50 w-full min-w-max border';
+export const COMBO_LIST_DARK = 'border-neutral-600 bg-black';
+export const COMBO_LIST_LIGHT = 'border-black bg-pearl';
+export const COMBO_OPTION =
+  'block w-full px-3 py-2 text-left font-mono text-[10px] uppercase tracking-widest transition-colors';
+export const COMBO_OPTION_DARK_ACTIVE = 'bg-pearl text-black';
+export const COMBO_OPTION_DARK_IDLE = 'text-pearl hover:bg-pearl hover:text-black';
+export const COMBO_OPTION_LIGHT_ACTIVE = 'bg-black text-pearl';
+export const COMBO_OPTION_LIGHT_IDLE = 'text-black hover:bg-black hover:text-pearl';

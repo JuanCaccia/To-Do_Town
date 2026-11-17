@@ -1,6 +1,10 @@
+import {
+  POMODORO_DEFAULT_CYCLES_BEFORE_LONG_BREAK,
+  POMODORO_SHORT_BREAK_DIVISOR,
+} from '../core/constants/economyConstants';
 import { createDayZeroState } from '../core/entities/dayZero';
 import type { StoragePort } from '../core/ports/StoragePort';
-import type { GameState, Neighborhood, TimestampMs } from '../core/types';
+import type { GameState, Neighborhood, PomodoroPreset, TimestampMs } from '../core/types';
 
 export async function hydrateGameState(storage: StoragePort, now: TimestampMs): Promise<GameState> {
   const saved = await storage.loadState();
@@ -37,6 +41,34 @@ function normalizeSavedState(saved: GameState): GameState {
         normalizeNeighborhood(neighborhood),
       ]),
     ),
+    config: {
+      ...saved.config,
+      pomodoroPresets: saved.config.pomodoroPresets.map(normalizePomodoroPreset),
+    },
+  };
+}
+
+/**
+ * Reconstruye los presets sembrados antes de US-08 CA-03, cuando todavía no
+ * existían `id` ni `name`.
+ *
+ * Sin `id`, todos los chips apuntan a la misma selección y siempre corre el
+ * primer preset; sin `name`, el usuario ve opciones en blanco. La identidad se
+ * deriva de la duración —el único dato que ese snapshot sí guardaba— y coincide
+ * con los presets por defecto de `dayZero`.
+ */
+function normalizePomodoroPreset(preset: PomodoroPreset): PomodoroPreset {
+  const shortBreakMinutes =
+    preset.shortBreakMinutes ?? Math.floor(preset.workMinutes / POMODORO_SHORT_BREAK_DIVISOR);
+
+  return {
+    id: preset.id ?? `pomodoro-${preset.workMinutes}-${shortBreakMinutes}`,
+    name: preset.name ?? `${preset.workMinutes}/${shortBreakMinutes}`,
+    workMinutes: preset.workMinutes,
+    shortBreakMinutes,
+    cyclesBeforeLongBreak:
+      preset.cyclesBeforeLongBreak ?? POMODORO_DEFAULT_CYCLES_BEFORE_LONG_BREAK,
+    longBreakMinutes: preset.longBreakMinutes ?? null,
   };
 }
 

@@ -443,7 +443,9 @@ El sistema debe calcular la generación pasiva de monedas y reducir gradualmente
 #### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
 - **CA-03 → US-05 CA-02 (deuda aceptada, DEC-016):** `calculateTick` ya existe desde US-05 como orquestador de jornada (reciclaje nocturno y reset diario). Esta US **extiende esa misma función** con la liquidación de producción pasiva: no crea un segundo tick ni reimplementa la detección de cambio de día operativo.
 
-### US-08 (usuario): Registro de Hidratación, Lectura y Sesiones de Foco `[IN PROGRESS]`
+### US-08 (usuario): Registro de Hidratación, Lectura y Sesiones de Foco `[DONE]`
+> **Alcance cerrado:** dominio + Fase 4. Los 4 CAs y las Pruebas 1-3 están implementados y validados a mano (2026-11-16), con 285 tests en el proyecto. El control Pomodoro ejecuta el **set completo**: 4 bloques de trabajo encadenados con sus descansos (`getBreakAfterWork` / `isPomodoroSetComplete`, funciones puras en `src/core`), cierra al completar `cyclesBeforeLongBreak` y sólo interrumpir un bloque de trabajo lo corta. El alta de presets (`+Preset`, CA-03) vive inline en la cinta negra y `useGameStore.createPreset` dejó de descartar `shortBreakMinutes`/`longBreakMinutes`. Un snapshot sembrado antes de que `PomodoroPreset` tuviera `id`/`name` se sanea en `normalizeSavedState`, de donde salían los chips en blanco que apuntaban siempre al preset de 25 min. **El foco todavía no paga monedas ni XP:** eso es US-09 CA-03/CA-04 (DEC-020), y las monedas que se mueven al terminar un bloque son producción pasiva de hábitos liquidada en `requireSettledState` (DEC-019).
+
 Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis sesiones de concentración asignadas a un barrio, para hacer evolucionar los edificios centrales de la ciudad y obtener recompensas por mi tiempo de estudio.   
 
 
@@ -467,9 +469,10 @@ Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis se
 
 
 **CA-04: Ejecución de Sesión Pomodoro Asignada a un Barrio**
-- Dado que existe al menos un barrio activo y el usuario selecciona un barrio destino y un PomodoroPreset,  
-- Cuando inicia la sesión de foco y decide completarla al llegar a workMinutes o interrumpirla anticipadamente tras haber transcurrido al menos 1 minuto,  
-- Entonces el sistema registra la sesión de foco vinculada al neighborhoodId seleccionado y dispara el cálculo de liquidación de monedas locales (para ese barrio) y XP Global (para el Ayuntamiento).  
+- Dado que existe al menos un barrio activo y el usuario selecciona un barrio destino y un PomodoroPreset,
+- Cuando inicia la sesión de foco y decide completarla al llegar a workMinutes o interrumpirla anticipadamente tras haber transcurrido al menos 1 minuto,
+- Entonces el sistema registra la sesión de foco vinculada al neighborhoodId seleccionado y dispara el cálculo de liquidación de monedas locales (para ese barrio) y XP Global (para el Ayuntamiento).
+- Y al completar un bloque de trabajo encadena el descanso que dicta el preset: descanso corto (`shortBreakMinutes`) después de cada bloque, y descanso largo (`longBreakMinutes`) al completar `cyclesBeforeLongBreak` bloques de trabajo; si `longBreakMinutes` es `null`, repite el descanso corto. Los descansos **no** registran sesión de foco, no acreditan monedas ni XP y no piden confirmación al cancelarse. El ciclo **encadena solo**: al terminar o saltear un descanso arranca el siguiente bloque de trabajo, salvo que el set ya haya completado sus `cyclesBeforeLongBreak` bloques —ahí el set **termina** y hay que iniciar uno nuevo—, o que se interrumpa un bloque de trabajo, que también lo cierra. El siguiente bloque de trabajo liquida como sesión nueva. Qué descanso corresponde y cuándo cierra el set son **funciones puras de `src/core`**, nunca lógica suelta en `src/ui`.
 
 
 #### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
@@ -477,6 +480,8 @@ Como usuario, quiero registrar mi consumo de agua, mis páginas leídas y mis se
 - **CA-01 → umbrales de nivel:** 15 / 60 / 200 / 500 L son de `ECONOMY.md` §5.1 y viven en `economyConstants.ts`, nunca dentro de la regla (misma deuda de estilo que `townHallLevel.ts`, que hoy tiene su tabla adentro).
 - **CA-03 → tipos:** `PomodoroPreset` no tiene `id` ni `longBreakMinutes`, y el CA exige ambos (`longBreakMinutes: number | null`). El ripple toca `dayZero.ts`. `shortBreakMinutes` sugerido = `floor(W / 5)` es un **valor por defecto editable**, no una regla de dominio: se sugiere en el formulario, no se reimpone en `core` (DEC-017).
 - **CA-04 → sin sesión persistida todavía:** la "liquidación" de esta US es un disparo. Si US-09 necesita el detalle de la sesión, el tipo nace ahí, no acá (YAGNI).
+- **CA-03 → formulario de alta cableado:** `+Preset` en el control Pomodoro abre un formulario inline sobre la cinta negra (nombre, W, descanso corto sugerido `floor(W/5)` y editable, descanso largo opcional). `cyclesBeforeLongBreak` queda fijo en 4 porque el CA no lo declara editable. `useGameStore.createPreset` acepta el `Omit<NewPomodoroPresetInput, 'id'>` completo: antes descartaba el descanso corto y largo, que son justamente los campos que este CA exige.
+- **CA-03/CA-04 → snapshot legacy (saldado):** un `GameState` sembrado antes de que `PomodoroPreset` tuviera `id`/`name` se hidrataba intacto y el control Pomodoro mostraba chips en blanco que apuntaban todos al primer preset (siempre 25 min). `normalizeSavedState` ahora reconstruye `id`, `name`, `shortBreakMinutes` y `longBreakMinutes` derivándolos de `workMinutes`, que es el único dato que ese snapshot guardaba. El contador `cyclesBeforeLongBreak` acumula bloques **dentro del set** y sólo se resetea al pulsar Iniciar —que abre un set nuevo— o al cambiar de preset; resetearlo sin cierre explícito del set habría impedido que existiera el descanso largo.
 
 
 #### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):

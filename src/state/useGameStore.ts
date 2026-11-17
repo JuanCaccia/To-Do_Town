@@ -24,7 +24,10 @@ import type { HabitRetirementResult } from '../core/rules/habitRetirement';
 import { upgradeNeighborhoodInfrastructure } from '../core/rules/infrastructureUpgrade';
 import type { InfrastructureUpgradeResult } from '../core/rules/infrastructureUpgrade';
 import { createPomodoroPreset } from '../core/entities/pomodoroPreset';
-import type { PomodoroPresetCreationResult } from '../core/entities/pomodoroPreset';
+import type {
+  NewPomodoroPresetInput,
+  PomodoroPresetCreationResult,
+} from '../core/entities/pomodoroPreset';
 import { recordFocusSession } from '../core/rules/focusSession';
 import type { FocusSessionResult, NewFocusSessionInput } from '../core/rules/focusSession';
 import { registerPageReading } from '../core/rules/libraryReading';
@@ -86,7 +89,7 @@ export interface GameStoreState {
   retireHabitToMuseum(habitId: EntityId): Promise<HabitRetirementResult>;
   registerWater(amount: WaterIntakeAmount): Promise<void>;
   registerPages(pages: number): Promise<LibraryReadingResult>;
-  createPreset(input: { name: string; workMinutes: number }): Promise<PomodoroPresetCreationResult>;
+  createPreset(input: Omit<NewPomodoroPresetInput, 'id'>): Promise<PomodoroPresetCreationResult>;
   recordFocus(input: Omit<NewFocusSessionInput, 'id'>): Promise<FocusSessionResult>;
 }
 
@@ -372,6 +375,8 @@ export function createGameStore(deps: GameStoreDeps) {
           presetId,
           name: input.name,
           workMinutes: input.workMinutes,
+          shortBreakMinutes: input.shortBreakMinutes,
+          longBreakMinutes: input.longBreakMinutes ?? null,
         });
 
         return result;
