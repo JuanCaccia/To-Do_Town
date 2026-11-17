@@ -2,6 +2,7 @@ import type { GameState, Neighborhood, OneOffTask, TimestampMs } from '../types'
 import { getCityNow } from './cityClock';
 import { getOperationalDay } from './dayCycle';
 import { applySafeFloor } from './habitDecay';
+import { hibernateCity, shouldHibernate } from './hibernation';
 import { settlePassiveProduction } from './passiveProduction';
 
 /**
@@ -20,10 +21,10 @@ export function calculateTick(state: GameState, now: TimestampMs): GameState {
   const operationalDay = getOperationalDay(now, state.config.dayCycle);
 
   if (operationalDay === decayed.lastOperationalDay) {
-    return decayed;
+    return shouldHibernate(decayed, now) ? hibernateCity(decayed, now) : decayed;
   }
 
-  return {
+  const recycled: GameState = {
     ...decayed,
     lastOperationalDay: operationalDay,
     // US-09 CA-03: `F_día` también es del día operativo.
@@ -37,6 +38,8 @@ export function calculateTick(state: GameState, now: TimestampMs): GameState {
     neighborhoods: recycleNeighborhoods(decayed.neighborhoods, operationalDay),
     tasks: recycleTasks(decayed.tasks),
   };
+
+  return shouldHibernate(recycled, now) ? hibernateCity(recycled, now) : recycled;
 }
 
 /**
