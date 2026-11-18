@@ -259,6 +259,11 @@ export type BackupValidation =
   | { ok: true; backup: BackupPayload }
   | { ok: false; reason: string };
 
+/** MIG-01: resultado de proyectar un estado sobre el esquema vigente. */
+export type GameStateProjection =
+  | { ok: true; state: GameState }
+  | { ok: false; issues: string[] };
+
 export interface BackupFile {
   format: typeof BACKUP_FORMAT;
   version: typeof BACKUP_VERSION;
@@ -301,6 +306,30 @@ export function buildBackupFile(
     gameState: canonicalState.data as GameState,
     domainEvents: canonicalEvents.data as DomainEventRecord[],
   };
+}
+
+/**
+ * MIG-01: proyecta un estado arbitrario sobre el esquema vigente.
+ *
+ * Es exactamente la misma proyección que usa el export, expuesta para la puerta
+ * de hidratación: lo que el tipo ya no declara se descarta **en la entrada**,
+ * así el estado en memoria nunca arrastra campos fantasma hasta el respaldo.
+ * Rellena huecos no: eso lo sigue haciendo `normalizeSavedState`, que conoce
+ * los defaults honestos de cada campo.
+ */
+export function projectGameState(raw: unknown): GameStateProjection {
+  const parsed = canonicalCatalog.gameStateSchema.safeParse(raw);
+
+  if (parsed.success === false) {
+    return {
+      ok: false,
+      issues: parsed.error.issues.map(
+        (issue) => `${issue.path.join('.') || 'estado'}: ${issue.message}`,
+      ),
+    };
+  }
+
+  return { ok: true, state: parsed.data as GameState };
 }
 
 /**

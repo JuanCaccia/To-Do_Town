@@ -1,9 +1,9 @@
 import { IDBFactory } from 'fake-indexeddb';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDayZeroState } from '../../../core/entities/dayZero';
 import type { StoragePort } from '../../../core/ports/StoragePort';
 import type { UnitOfWorkPort } from '../../../core/ports/UnitOfWorkPort';
-import { IndexedDBAdapter } from '../IndexedDBAdapter';
+import { IndexedDBAdapter, GAME_STATE_KEY, GAME_STATE_STORE, GAME_STATE_VERSION } from '../IndexedDBAdapter';
 
 const NOW = 1_700_000_000_000;
 
@@ -58,6 +58,80 @@ describe('IndexedDBAdapter — US-01 CA-03: snapshot en game_state', () => {
     const reloaded = await new IndexedDBAdapter().loadState();
 
     expect(reloaded).toEqual(state);
+  });
+});
+
+describe('MIG-01: el snapshot persistido declara su versión', () => {
+  beforeEach(resetIndexedDB);
+
+  async function writeRaw(record: unknown): Promise<void> {
+    const db = await new IndexedDBAdapter().open();
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(GAME_STATE_STORE, 'readwrite');
+
+        transaction.objectStore(GAME_STATE_STORE).put(record, GAME_STATE_KEY);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+    } finally {
+      db.close();
+    }
+  }
+
+  async function readRaw(): Promise<unknown> {
+    const db = await new IndexedDBAdapter().open();
+
+    try {
+      return await new Promise<unknown>((resolve, reject) => {
+        const request = db
+          .transaction(GAME_STATE_STORE, 'readonly')
+          .objectStore(GAME_STATE_STORE)
+          .get(GAME_STATE_KEY);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    } finally {
+      db.close();
+    }
+  }
+
+  it('guarda la versión del esquema junto al estado', async () => {
+    const state = createDayZeroState(NOW);
+
+    await new IndexedDBAdapter().saveState(state);
+
+    expect(await readRaw()).toEqual({ version: GAME_STATE_VERSION, state });
+  });
+
+  it('sigue leyendo un registro anterior, que se guardó sin envoltorio', async () => {
+    const state = createDayZeroState(NOW);
+
+    await writeRaw(state);
+
+    expect(await new IndexedDBAdapter().loadState()).toEqual(state);
+  });
+
+  it('escribe la versión también cuando el estado llega por commit', async () => {
+    const state = createDayZeroState(NOW);
+
+    await new IndexedDBAdapter().commit(state, EVENT);
+
+    expect(await readRaw()).toEqual({ version: GAME_STATE_VERSION, state });
+  });
+
+  it('avisa cuando el snapshot lo escribió una versión más nueva del esquema', async () => {
+    const state = createDayZeroState(NOW);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await writeRaw({ version: GAME_STATE_VERSION + 1, state });
+
+    expect(await new IndexedDBAdapter().loadState()).toEqual(state);
+    expect(warn).toHaveBeenCalledOnce();
+
+    warn.mockRestore();
   });
 });
 

@@ -731,7 +731,12 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **No incluye:** relajar el import. El import se queda estricto; lo que se endurece es la hidratación local.
 
-**Estado:** registrada al cerrar US-12 (2026-11-17).
+**Estado: CERRADA (2026-11-17).** Tres piezas, 7 tests nuevos:
+1. **Versión en disco.** `IndexedDBAdapter` guarda `{ version, state }` (`GAME_STATE_VERSION = 1`) en `saveState`, `commit` y `replaceAll`. Un registro anterior a este cambio —el `GameState` pelado— se reconoce por la ausencia de `version` y se lee igual: la ciudad real del usuario no se toca. Una versión **mayor** a la del build avisa por consola y se lee igual; sin eso la marca sería decorativa.
+2. **Proyección en la entrada.** `projectGameState` (en `backupSchema`, la misma proyección tolerante del export) corre al final de `hydrateGameState`, después de los backfills. Lo que el tipo ya no declara se descarta **antes** de llegar a memoria, en vez de descartarse recién al exportar.
+3. **Sin bloquear el arranque.** Si un snapshot ni normalizado entra en el esquema —una cuadra sin `gridPosition`, por ejemplo— se devuelve igual y se avisa por consola. Una ciudad rara es mejor que ninguna, y el export sigue siendo el gate estricto.
+
+**Lo que sigue fuera:** no hay migraciones porque hay una sola versión. Cuando el esquema cambie de forma, la política es: subir `GAME_STATE_VERSION`, agregar el backfill en `normalizeSavedState` y su test de snapshot legado. Ese procedimiento es el que este cierre deja escrito, no una tabla de migraciones.
 
 ### UI-01: Formalizar el sistema de diseño "Odyssey OS"
 

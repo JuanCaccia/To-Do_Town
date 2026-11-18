@@ -11,6 +11,45 @@ export const GAME_STATE_STORE = 'game_state';
 export const DOMAIN_EVENTS_STORE = 'domain_events';
 export const GAME_STATE_KEY = 'current';
 
+/**
+ * MIG-01: versión del esquema con el que se escribió el snapshot persistido.
+ * Se sube cuando el `GameState` cambia de forma, no en cada cambio de tipo: es
+ * la marca que le permite a una versión futura saber qué está leyendo.
+ */
+export const GAME_STATE_VERSION = 1;
+
+interface StoredGameState {
+  version: number;
+  state: GameState;
+}
+
+/**
+ * El registro guardado envuelve el estado con la versión que lo escribió.
+ * Un registro anterior a MIG-01 es el `GameState` pelado: se reconoce por la
+ * ausencia de `version` y se acepta igual, porque es la ciudad real del usuario
+ * y no hay nada que migrar todavía.
+ */
+function toStored(state: GameState): StoredGameState {
+  return { version: GAME_STATE_VERSION, state };
+}
+
+function fromStored(stored: GameState | StoredGameState): GameState {
+  if ('version' in stored === false) {
+    return stored;
+  }
+
+  // Un snapshot de un build más nuevo puede traer campos que esta versión no
+  // conoce. Se lee igual —la ciudad es del usuario— pero se avisa: sin esto la
+  // versión sería un sello decorativo.
+  if (stored.version > GAME_STATE_VERSION) {
+    console.warn(
+      `[IndexedDBAdapter] el snapshot se escribió con la versión ${stored.version} del esquema y este build entiende hasta la ${GAME_STATE_VERSION}.`,
+    );
+  }
+
+  return stored.state;
+}
+
 const LOCAL_DEVICE_IDENTITY = { userId: 'local-owner', deviceId: 'desktop' } as const;
 
 export class IndexedDBAdapter implements StoragePort, UnitOfWorkPort, BackupPort {
@@ -38,17 +77,19 @@ export class IndexedDBAdapter implements StoragePort, UnitOfWorkPort, BackupPort
   async saveState(state: GameState): Promise<void> {
     await this.withDatabase((db) =>
       transact(db, [GAME_STATE_STORE], (transaction) => {
-        transaction.objectStore(GAME_STATE_STORE).put(state, GAME_STATE_KEY);
+        transaction.objectStore(GAME_STATE_STORE).put(toStored(state), GAME_STATE_KEY);
       }),
     );
   }
 
   async loadState(): Promise<GameState | null> {
     const stored = await this.withDatabase((db) =>
-      read<GameState | undefined>(db, GAME_STATE_STORE, (store) => store.get(GAME_STATE_KEY)),
+      read<GameState | StoredGameState | undefined>(db, GAME_STATE_STORE, (store) =>
+        store.get(GAME_STATE_KEY),
+      ),
     );
 
-    return stored ?? null;
+    return stored === undefined ? null : fromStored(stored);
   }
 
   async commit(state: GameState, event: PendingDomainEvent): Promise<DomainEventRecord> {
@@ -56,7 +97,7 @@ export class IndexedDBAdapter implements StoragePort, UnitOfWorkPort, BackupPort
 
     await this.withDatabase((db) =>
       transact(db, [GAME_STATE_STORE, DOMAIN_EVENTS_STORE], (transaction) => {
-        transaction.objectStore(GAME_STATE_STORE).put(state, GAME_STATE_KEY);
+        transaction.objectStore(GAME_STATE_STORE).put(toStored(state), GAME_STATE_KEY);
         transaction.objectStore(DOMAIN_EVENTS_STORE).add(record, record.eventId);
       }),
     );
@@ -91,7 +132,7 @@ export class IndexedDBAdapter implements StoragePort, UnitOfWorkPort, BackupPort
         stateStore.clear();
         eventStore.clear();
 
-        stateStore.put(backup.gameState, GAME_STATE_KEY);
+        stateStore.put(toStored(backup.gameState), GAME_STATE_KEY);
 
         for (const event of backup.domainEvents) {
           eventStore.add(event, event.eventId);

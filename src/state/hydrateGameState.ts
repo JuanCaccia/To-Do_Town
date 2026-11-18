@@ -1,3 +1,4 @@
+import { projectGameState } from '../adapters/backup/backupSchema';
 import {
   POMODORO_DEFAULT_CYCLES_BEFORE_LONG_BREAK,
   POMODORO_SHORT_BREAK_DIVISOR,
@@ -20,13 +21,40 @@ export async function hydrateGameState(storage: StoragePort, now: TimestampMs): 
   const saved = await storage.loadState();
 
   if (saved !== null) {
-    return normalizeSavedState(saved);
+    return projectSavedState(normalizeSavedState(saved));
   }
 
   const dayZeroState = createDayZeroState(now);
   await storage.saveState(dayZeroState);
 
   return dayZeroState;
+}
+
+/**
+ * MIG-01: segunda mitad de la puerta de entrada.
+ *
+ * `normalizeSavedState` rellena lo que falta; esta proyección descarta lo que
+ * sobra. Antes, un campo que el tipo ya no declaraba sobrevivía al cast de
+ * `loadState`, vivía en memoria y llegaba intacto al archivo de respaldo, que
+ * se rechazaba a sí mismo al importarse.
+ *
+ * Si el snapshot ni siquiera normalizado entra en el esquema, se devuelve igual
+ * y se avisa: bloquear el arranque dejaría al usuario sin ciudad, y una ciudad
+ * rara es mejor que ninguna.
+ */
+function projectSavedState(normalized: GameState): GameState {
+  const projection = projectGameState(normalized);
+
+  if (projection.ok) {
+    return projection.state;
+  }
+
+  console.warn(
+    '[hydrateGameState] el snapshot persistido no coincide con el esquema vigente:',
+    projection.issues.join(' · '),
+  );
+
+  return normalized;
 }
 
 /**
