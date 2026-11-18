@@ -1,4 +1,5 @@
 import { createDomainEvent } from '../../core/ports/EventLogPort';
+import type { BackupPort } from '../../core/ports/BackupPort';
 import type { StoragePort } from '../../core/ports/StoragePort';
 import type { PendingDomainEvent, UnitOfWorkPort } from '../../core/ports/UnitOfWorkPort';
 import type { DomainEventRecord, GameState } from '../../core/types';
@@ -12,7 +13,7 @@ export const GAME_STATE_KEY = 'current';
 
 const LOCAL_DEVICE_IDENTITY = { userId: 'local-owner', deviceId: 'desktop' } as const;
 
-export class IndexedDBAdapter implements StoragePort, UnitOfWorkPort {
+export class IndexedDBAdapter implements StoragePort, UnitOfWorkPort, BackupPort {
   open(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
@@ -69,6 +70,34 @@ export class IndexedDBAdapter implements StoragePort, UnitOfWorkPort {
     );
 
     return events.filter((event) => event.syncedAt === null);
+  }
+
+  async listEvents(): Promise<DomainEventRecord[]> {
+    return this.withDatabase((db) =>
+      read<DomainEventRecord[]>(db, DOMAIN_EVENTS_STORE, (store) => store.getAll()),
+    );
+  }
+
+  /**
+   * Una sola transacción sobre ambos almacenes: si el respaldo no se puede
+   * escribir completo, IndexedDB aborta y la ciudad anterior sigue intacta.
+   */
+  async replaceAll(backup: { gameState: GameState; domainEvents: DomainEventRecord[] }): Promise<void> {
+    await this.withDatabase((db) =>
+      transact(db, [GAME_STATE_STORE, DOMAIN_EVENTS_STORE], (transaction) => {
+        const stateStore = transaction.objectStore(GAME_STATE_STORE);
+        const eventStore = transaction.objectStore(DOMAIN_EVENTS_STORE);
+
+        stateStore.clear();
+        eventStore.clear();
+
+        stateStore.put(backup.gameState, GAME_STATE_KEY);
+
+        for (const event of backup.domainEvents) {
+          eventStore.add(event, event.eventId);
+        }
+      }),
+    );
   }
 
   private async withDatabase<T>(run: (db: IDBDatabase) => Promise<T>): Promise<T> {

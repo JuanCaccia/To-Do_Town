@@ -8,8 +8,11 @@ import type { StoragePort } from '../core/ports/StoragePort';
 import type {
   CentralAqueduct,
   CentralLibrary,
+  CityBlock,
   GameState,
+  HabitBuilding,
   Neighborhood,
+  OneOffTask,
   PomodoroPreset,
   TimestampMs,
 } from '../core/types';
@@ -41,7 +44,14 @@ export async function hydrateGameState(storage: StoragePort, now: TimestampMs): 
 function normalizeSavedState(saved: GameState): GameState {
   return {
     ...saved,
-    focusSessions: saved.focusSessions ?? {},
+    focusSessions: Object.fromEntries(
+      Object.entries(saved.focusSessions ?? {}).map(([id, session]) => [
+        id,
+        // US-08 CA-04: una sesión anterior no guardaba `presetId`. Ninguna
+        // regla lo lee, así que un sentinela es preferible a inventar un preset.
+        { ...session, presetId: session.presetId ?? 'unknown' },
+      ]),
+    ),
     // US-09 CA-03: sin este relleno, el primer pomodoro de un snapshot anterior
     // haría `undefined + n = NaN` y envenenaría `F_día` hasta el corte.
     dailyFocusMinutes: Number.isFinite(saved.dailyFocusMinutes) ? saved.dailyFocusMinutes : 0,
@@ -55,6 +65,12 @@ function normalizeSavedState(saved: GameState): GameState {
         id,
         normalizeNeighborhood(neighborhood),
       ]),
+    ),
+    habits: Object.fromEntries(
+      Object.entries(saved.habits).map(([id, habit]) => [id, normalizeHabit(habit)]),
+    ),
+    tasks: Object.fromEntries(
+      Object.entries(saved.tasks).map(([id, task]) => [id, normalizeTask(task)]),
     ),
     config: {
       ...saved.config,
@@ -70,10 +86,17 @@ function normalizeSavedState(saved: GameState): GameState {
  * de esta normalización.
  */
 function normalizeAqueduct(aqueduct: CentralAqueduct): CentralAqueduct {
+  // US-05 CA-02 movió el día operativo a `GameState.lastOperationalDay`. Un
+  // snapshot anterior lo sigue trayendo acá, y el respaldo `.todotown` es
+  // estricto: exportar ese campo condenaría al archivo a rechazarse solo.
+  const { lastOperationalDay: _legacyOperationalDay, ...current } = aqueduct as CentralAqueduct & {
+    lastOperationalDay?: string;
+  };
+
   return {
-    ...aqueduct,
-    dailyLiters: Number.isFinite(aqueduct.dailyLiters)
-      ? Math.min(aqueduct.dailyLiters, WATER_DAILY_HARD_CAP_LITERS)
+    ...current,
+    dailyLiters: Number.isFinite(current.dailyLiters)
+      ? Math.min(current.dailyLiters, WATER_DAILY_HARD_CAP_LITERS)
       : 0,
   };
 }
@@ -121,5 +144,49 @@ function normalizeNeighborhood(neighborhood: Neighborhood): Neighborhood {
     pendingCoinsRemainder: Number.isFinite(neighborhood.pendingCoinsRemainder)
       ? neighborhood.pendingCoinsRemainder
       : 0,
+    // US-11 CA-01: un snapshot anterior a la hibernación no trae la marca de
+    // penalización. Sin este relleno, el respaldo estricto lo rechaza.
+    reactivationPenaltyUntil: neighborhood.reactivationPenaltyUntil ?? null,
+    // US-10 agregó el contador diario y las decoraciones; un snapshot previo no
+    // los trae y el esquema del respaldo los exige.
+    dailyTasksCompletedCount: neighborhood.dailyTasksCompletedCount ?? 0,
+    decorations: neighborhood.decorations ?? [],
+    blocks: neighborhood.blocks.map(normalizeBlock),
+  };
+}
+
+/**
+ * US-03 CA-01 agregó `House.createdAt` a un tipo que ya tenía ciudades. La casa
+ * es un dato pasivo (ningún cálculo lo lee), así que `0` es un "fecha
+ * desconocida" honesto y no inventa un historial.
+ */
+function normalizeBlock(block: CityBlock): CityBlock {
+  return {
+    ...block,
+    houses: block.houses.map((house) => ({ ...house, createdAt: house.createdAt ?? 0 })),
+  };
+}
+
+/**
+ * US-06 CA-03 agregó `lastFrequencyChangeAt`; US-06 CA-01, `createdAt`.
+ *
+ * El reloj de producción cae a `lastCompletedAt` cuando existe. Si nunca se
+ * cumplió, `createdAt: 0` lo deja en Apagón: regalar un `createdAt` fresco
+ * encendería un hábito que el usuario no sostuvo.
+ */
+function normalizeHabit(habit: HabitBuilding): HabitBuilding {
+  return {
+    ...habit,
+    createdAt: habit.createdAt ?? habit.lastCompletedAt ?? 0,
+    lastFrequencyChangeAt: habit.lastFrequencyChangeAt ?? null,
+  };
+}
+
+/** US-04 agregó `createdAt` y `completedAt`; ninguna regla lee el primero. */
+function normalizeTask(task: OneOffTask): OneOffTask {
+  return {
+    ...task,
+    createdAt: task.createdAt ?? 0,
+    completedAt: task.completedAt ?? null,
   };
 }

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { CryptoIdAdapter } from '../adapters/id/CryptoIdAdapter';
+import { buildBackupFile, parseBackupFile } from '../adapters/backup/backupSchema';
+import type { BackupFile } from '../adapters/backup/backupSchema';
 import { IndexedDBAdapter } from '../adapters/storage/IndexedDBAdapter';
+import { injectTreasury } from '../adapters/dev-tools/treasuryInjection';
 import { createNeighborhood } from '../core/entities/neighborhood';
 import { createHabit } from '../core/entities/habit';
 import type { HabitCreationResult } from '../core/entities/habit';
@@ -37,6 +40,12 @@ import type { FocusSessionResult, NewFocusSessionInput } from '../core/rules/foc
 import type { PageCapResult } from '../core/rules/dailyCaps';
 import { applyPageDailyCap, applyWaterDailyCap } from '../core/rules/dailyCaps';
 import type { WaterIntakeAmount } from '../core/rules/waterIntake';
+import { parseCommand } from '../core/rules/commandParser';
+import type { CommandRejectionReason } from '../core/rules/commandParser';
+import { undoAction } from '../core/rules/undoAction';
+import type { UndoRejectionReason } from '../core/rules/undoAction';
+import { pruneExpiredSnapshots } from '../core/rules/undoQueue';
+import { createUndoSnapshot } from '../core/rules/undoSnapshot';
 import type {
   CityBlock,
   DecorationKind,
@@ -45,18 +54,72 @@ import type {
   HabitFrequency,
   TaskWeight,
   TimestampMs,
+  UndoSnapshot,
 } from '../core/types';
 import { hydrateGameState } from './hydrateGameState';
+import type { BackupPort } from '../core/ports/BackupPort';
 
 export interface GameStoreDeps {
-  storage: StoragePort;
+  /**
+   * US-12 CA-04: el respaldo reemplaza los dos almacenes a la vez, así que el
+   * almacenamiento tiene que poder hacerlo. Un `StoragePort` a secas serviría
+   * para operar la ciudad, pero no para exportarla ni restaurarla.
+   */
+  storage: StoragePort & BackupPort;
   unitOfWork: UnitOfWorkPort;
   idPort: IdPort;
   now: () => TimestampMs;
 }
 
+/**
+ * US-12 CA-01: solicitud de foco de un solo uso. El cronómetro sigue siendo
+ * estado efímero de la vista (`FocusTimer`), así que el comando no arranca un
+ * timer desde el store: deja pedido qué barrio y qué preset, y la vista lo
+ * consume y lo limpia.
+ */
+export interface FocusRequest {
+  neighborhoodId: EntityId;
+  presetId: string;
+}
+
+export type CommandDispatchRejection =
+  | CommandRejectionReason
+  | 'NEIGHBORHOOD_NOT_FOUND'
+  | 'NO_MATCHING_PRESET';
+
+export type CommandDispatchResult =
+  | { status: 'EXECUTED' }
+  | { status: 'REJECTED'; reason: CommandDispatchRejection };
+
+/**
+ * US-12 CA-02: el resultado de deshacer no expone `state`. Si la reversión se
+ * rechaza, no hay nada que commitear, así que no puede escapar un
+ * `ACTION_UNDONE` de una entrada vencida.
+ */
+export type UndoOutcome =
+  | { status: 'UNDONE' }
+  | { status: 'REJECTED'; reason: UndoRejectionReason | 'NOTHING_TO_UNDO' };
+
+/**
+ * US-12 CA-04: la importación es un todo o nada. El motivo del rechazo viaja
+ * hasta el HUD para que el usuario sepa qué falló sin abrir la consola.
+ */
+export type BackupImportOutcome =
+  | { status: 'IMPORTED' }
+  | { status: 'REJECTED'; reason: string };
+
 export interface GameStoreState {
   state: GameState | null;
+  focusRequest: FocusRequest | null;
+  undoQueue: UndoSnapshot[];
+  consumeFocusRequest(): FocusRequest | null;
+  runCommand(raw: string): Promise<CommandDispatchResult>;
+  undoLastAction(): Promise<UndoOutcome>;
+  dismissUndo(): void;
+  exportBackup(): Promise<BackupFile>;
+  importBackup(raw: unknown): Promise<BackupImportOutcome>;
+  /** DEV-01: siembra de saldo para pruebas manuales; sólo la usa el panel DEV. */
+  setNeighborhoodTreasury(neighborhoodId: EntityId, coins: number): Promise<void>;
   hydrate(now: TimestampMs): Promise<void>;
   tick(): Promise<void>;
   createNeighborhood(input: { name: string; paletteId: string }): Promise<EntityId>;
@@ -109,6 +172,21 @@ function habitsRolledBackToFloor(previous: GameState, next: GameState): EntityId
   );
 }
 
+/**
+ * Resuelve el barrio por el nombre que escribió el usuario: comparación exacta
+ * salvo mayúsculas. El parser conserva el nombre tal cual, así que este es el
+ * único punto donde el texto del comando se cruza con el estado.
+ */
+function findNeighborhoodByName(state: GameState, name: string): EntityId | null {
+  const target = name.toLowerCase();
+
+  for (const [id, neighborhood] of Object.entries(state.neighborhoods)) {
+    if (neighborhood.name.toLowerCase() === target) return id;
+  }
+
+  return null;
+}
+
 export function createGameStore(deps: GameStoreDeps) {
   return create<GameStoreState>()((set, get) => {
     function stateOrThrow(): GameState {
@@ -159,14 +237,191 @@ export function createGameStore(deps: GameStoreDeps) {
       set({ state: next });
     }
 
+    /**
+     * US-12 CA-02: commit de una acción que el usuario puede deshacer.
+     *
+     * La instantánea se toma del estado **inmediatamente anterior** al commit y
+     * se apila en la misma llamada, así no puede desincronizarse del cambio que
+     * dice representar. Sólo las acciones que enumera US-13 CA-01 pasan por acá;
+     * los eventos del sistema y las acciones no reversibles siguen usando
+     * `commit` a secas.
+     */
+    async function commitWithUndo(
+      next: GameState,
+      type: string,
+      payload: Record<string, unknown>,
+      description: string,
+    ) {
+      const snapshot = createUndoSnapshot(
+        stateOrThrow(),
+        deps.idPort.generateId(),
+        description,
+        deps.now(),
+      );
+
+      await commit(next, type, payload);
+
+      set((current) => ({
+        undoQueue: pruneExpiredSnapshots([...current.undoQueue, snapshot], deps.now()),
+      }));
+    }
+
     return {
       state: null,
+      focusRequest: null,
+      undoQueue: [],
+
+      async undoLastAction() {
+        const queue = get().undoQueue;
+        const snapshot = queue[queue.length - 1];
+
+        if (snapshot === undefined) {
+          return { status: 'REJECTED', reason: 'NOTHING_TO_UNDO' };
+        }
+
+        const result = undoAction(snapshot, deps.now());
+
+        if (result.status === 'REJECTED') {
+          // La entrada vencida se descarta acá: reintentar no la va a revivir.
+          set({ undoQueue: pruneExpiredSnapshots(queue, deps.now()) });
+          return { status: 'REJECTED', reason: result.reason };
+        }
+
+        await commit(result.state, 'ACTION_UNDONE', {
+          actionId: snapshot.actionId,
+          description: snapshot.description,
+        });
+
+        set({ undoQueue: queue.filter((entry) => entry !== snapshot) });
+
+        return { status: 'UNDONE' };
+      },
+
+      /**
+       * Renuncia a la última oportunidad de revertir sin tocar el estado. Sólo
+       * se descarta la entrada más reciente: las anteriores siguen en la cola y
+       * el toast muestra la siguiente si aún está vigente.
+       */
+      dismissUndo() {
+        set({ undoQueue: get().undoQueue.slice(0, -1) });
+      },
+
+      /**
+       * US-12 CA-04: el respaldo incluye el historial completo de eventos, no
+       * sólo lo pendiente de sincronizar. El archivo es la ciudad entera.
+       */
+      async exportBackup() {
+        const domainEvents = await deps.storage.listEvents();
+
+        return buildBackupFile(stateOrThrow(), domainEvents, deps.now());
+      },
+
+      /**
+       * Importar no emite evento de dominio: el archivo ya trae su propio
+       * historial y agregar uno lo contaminaría con la ciudad descartada.
+       */
+      async importBackup(raw) {
+        const validation = parseBackupFile(raw);
+
+        if (validation.ok === false) {
+          return { status: 'REJECTED', reason: validation.reason };
+        }
+
+        await deps.storage.replaceAll(validation.backup);
+
+        set({ state: validation.backup.gameState, focusRequest: null, undoQueue: [] });
+
+        return { status: 'IMPORTED' };
+      },
+
+      /**
+       * DEV-01: sembrar un saldo para pruebas manuales. No pasa por `commit`
+       * porque una siembra no es un evento de dominio: contaminaría el Outbox
+       * que CloudSync va a empujar. Persiste el snapshot y nada más.
+       */
+      async setNeighborhoodTreasury(neighborhoodId, coins) {
+        const settled = requireSettledState();
+        const next = injectTreasury(settled, neighborhoodId, coins);
+
+        if (next === settled) {
+          return;
+        }
+
+        await deps.storage.saveState(next);
+        set({ state: next });
+      },
+
+      consumeFocusRequest() {
+        const request = get().focusRequest;
+
+        if (request !== null) set({ focusRequest: null });
+
+        return request;
+      },
+
+      async runCommand(raw) {
+        const command = parseCommand(raw);
+
+        // Un comando inválido no toca el estado ni liquida: no hay nada que mutar.
+        if (command.kind === 'INVALID') {
+          return { status: 'REJECTED', reason: command.reason };
+        }
+
+        if (command.kind === 'WATER') {
+          await get().registerWater(command.liters);
+          return { status: 'EXECUTED' };
+        }
+
+        if (command.kind === 'READING') {
+          await get().registerPages(command.pages);
+          return { status: 'EXECUTED' };
+        }
+
+        const neighborhoodId = findNeighborhoodByName(
+          stateOrThrow(),
+          command.neighborhoodName,
+        );
+
+        if (neighborhoodId === null) {
+          return { status: 'REJECTED', reason: 'NEIGHBORHOOD_NOT_FOUND' };
+        }
+
+        if (command.kind === 'TASK') {
+          await get().createTask({
+            neighborhoodId,
+            title: command.title,
+            weight: command.weight,
+          });
+          return { status: 'EXECUTED' };
+        }
+
+        // `pomo` trae minutos sueltos, pero el ciclo trabajo/descanso depende del
+        // preset: no se inventa un cronómetro ad-hoc con `workMinutes` arbitrario.
+        const preset = stateOrThrow().config.pomodoroPresets.find(
+          (candidate) => candidate.workMinutes === command.minutes,
+        );
+
+        if (preset === undefined) {
+          return { status: 'REJECTED', reason: 'NO_MATCHING_PRESET' };
+        }
+
+        set({ focusRequest: { neighborhoodId, presetId: preset.id } });
+
+        return { status: 'EXECUTED' };
+      },
 
       async hydrate(now) {
         set({ state: await hydrateGameState(deps.storage, now) });
       },
 
       async tick() {
+        // US-13 CA-03: el reloj de la ciudad purga la cola de reversibilidad.
+        const prunedQueue = pruneExpiredSnapshots(get().undoQueue, deps.now());
+
+        if (prunedQueue.length !== get().undoQueue.length) {
+          set({ undoQueue: prunedQueue });
+        }
+
         const current = stateOrThrow();
         const next = calculateTick(current, deps.now());
 
@@ -224,10 +479,10 @@ export function createGameStore(deps: GameStoreDeps) {
           return result;
         }
 
-        await commit(result.state, 'INFRASTRUCTURE_UPGRADED', {
+        await commitWithUndo(result.state, 'INFRASTRUCTURE_UPGRADED', {
           neighborhoodId,
           cost: result.cost,
-        });
+        }, 'Infraestructura mejorada');
 
         return result;
       },
@@ -239,7 +494,7 @@ export function createGameStore(deps: GameStoreDeps) {
           return result;
         }
 
-        await commit(result.state, 'BLOCK_LEVELED', { neighborhoodId, position, cost: result.cost });
+        await commitWithUndo(result.state, 'BLOCK_LEVELED', { neighborhoodId, position, cost: result.cost }, 'Cuadra nivelada');
 
         return result;
       },
@@ -255,7 +510,7 @@ export function createGameStore(deps: GameStoreDeps) {
           return result;
         }
 
-        await commit(result.state, 'DECORATION_PURCHASED', { neighborhoodId, kind, cost: result.cost });
+        await commitWithUndo(result.state, 'DECORATION_PURCHASED', { neighborhoodId, kind, cost: result.cost }, 'Decoración comprada');
 
         return result;
       },
@@ -301,7 +556,7 @@ export function createGameStore(deps: GameStoreDeps) {
           return;
         }
 
-        await commit(next, 'TASK_COMPLETED', { taskId });
+        await commitWithUndo(next, 'TASK_COMPLETED', { taskId }, 'Tarea completada');
       },
 
       async createHabit(input) {
@@ -334,7 +589,7 @@ export function createGameStore(deps: GameStoreDeps) {
           return result;
         }
 
-        await commit(result.state, 'HABIT_CHECKED_IN', { habitId });
+        await commitWithUndo(result.state, 'HABIT_CHECKED_IN', { habitId }, 'Hábito cumplido');
 
         return result;
       },
@@ -383,7 +638,7 @@ export function createGameStore(deps: GameStoreDeps) {
           return;
         }
 
-        await commit(cap.state, 'WATER_REGISTERED', { amount: cap.creditedLiters });
+        await commitWithUndo(cap.state, 'WATER_REGISTERED', { amount: cap.creditedLiters }, 'Agua registrada');
       },
 
       async registerPages(pages) {
@@ -397,7 +652,7 @@ export function createGameStore(deps: GameStoreDeps) {
           return result;
         }
 
-        await commit(result.state, 'PAGES_REGISTERED', { pages: result.creditedPages });
+        await commitWithUndo(result.state, 'PAGES_REGISTERED', { pages: result.creditedPages }, 'Lectura registrada');
 
         return result;
       },
@@ -434,13 +689,13 @@ export function createGameStore(deps: GameStoreDeps) {
         // evento —o al revés— si la segunda falla.
         const liquidated = liquidateFocusSession(recorded.state, focusSessionId);
 
-        await commit(liquidated, 'FOCUS_SESSION_RECORDED', {
+        await commitWithUndo(liquidated, 'FOCUS_SESSION_RECORDED', {
           focusSessionId,
           neighborhoodId: input.neighborhoodId,
           presetId: input.presetId,
           outcome: input.outcome,
           focusMinutes: recorded.state.focusSessions[focusSessionId]?.focusMinutes,
-        });
+        }, 'Sesión de foco registrada');
 
         return { status: 'RECORDED', state: liquidated };
       },
