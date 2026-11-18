@@ -165,3 +165,16 @@ export interface GameState {
    */
   dailyFocusMinutes: number;
 }
+
+/**
+ * US-13 CA-01: entrada de la cola de reversibilidad. `previousState` es una
+ * copia aislada, no una referencia al estado vivo: si compartiera nodos, una
+ * mutación futura del motor contaminaría la instantánea en silencio.
+ */
+export interface UndoSnapshot {
+  actionId: EntityId;
+  description: string;
+  createdAt: TimestampMs;
+  expiresAt: TimestampMs;
+  previousState: GameState;
+}
