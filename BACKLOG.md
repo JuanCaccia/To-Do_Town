@@ -75,7 +75,7 @@ El sistema debe guardar cada cambio de estado y evento de forma transparente par
 - Entonces sobrescribe el snapshot actualizado en el almacén game_state e inserta en el mismo flujo el nuevo registro DomainEventRecord en domain_events adjuntando userId: 'local-owner', el identificador del dispositivo (deviceId: 'desktop') y syncedAt: null.  
 
 #### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
-- **CA-04 → US-12 CA-02:** `EventLogPort.appendEvent` sigue sin implementarse en el adapter; el alta de eventos hoy sólo existe dentro de `commit`. US-12 CA-02 exige emitir un evento compensatorio `ACTION_UNDONE`; decidir entonces si ese flujo pasa por `commit` o necesita un `appendEvent` suelto (sin snapshot). No inventarlo antes.
+- **CA-04 → US-12 CA-02 (resuelto):** `EventLogPort.appendEvent` no se implementó y **no hace falta**: el `ACTION_UNDONE` viaja por `UnitOfWorkPort.commit` junto al snapshot revertido, así que un evento nunca puede quedar huérfano de su estado. Se descartó el `appendEvent` suelto (sin snapshot) por esa razón.
 - **CA-04 → Etapa 3 (CloudSync):** `userId: 'local-owner'` y `deviceId: 'desktop'` están hardcodeados en `IndexedDBAdapter` (`LOCAL_DEVICE_IDENTITY`). Cuando exista cuenta real, la identidad debe inyectarse por constructor.
 - **CA-03 → Fase 4 (resuelto):** `main.tsx` hidrata con `await hydrateGameState(...)` **antes** de `createRoot`. Se descartó `useEffect`: bajo `StrictMode` se ejecuta dos veces y podía sembrar dos Días Cero con timestamps distintos.
 - **Resuelto en CA-03/CA-04:** claves definidas (`GAME_STATE_KEY = 'current'` para el snapshot; `eventId` como clave out-of-line con `add` en `domain_events`); conexión abierta y cerrada por operación; método atómico `UnitOfWorkPort.commit` (DEC-014) reemplaza la composición `saveState` + `appendEvent`.
@@ -85,7 +85,7 @@ El sistema debe guardar cada cambio de estado y evento de forma transparente par
 
 
 ### US-02 (usuario): Creación y Urbanización de Barrios `[DONE]`
-> **Alcance cerrado:** dominio. Los 4 CAs están implementados y testeados (51 tests). **Fase 4 cerrada:** las Pruebas 1-3 (alta desde el HUD, economía estanca visual, flujo de mejora) fueron validadas a mano contra el HUD. Prueba 3 se validó en su **mecánica**; sus números literales (50 → 80 XP) exigen un saldo inicial que sólo la herramienta DEV puede sembrar sin ensuciar el XP previo (ver Deuda Registrada).
+> **Alcance cerrado:** dominio. Los 4 CAs están implementados y testeados (51 tests). **Fase 4 cerrada:** las Pruebas 1-3 (alta desde el HUD, economía estanca visual, flujo de mejora) fueron validadas a mano contra el HUD. Prueba 3 se validó en su **mecánica**; sus números literales (50 → 80 XP) exigen un saldo inicial que sólo la herramienta DEV puede sembrar sin ensuciar el XP previo (ver Deuda Registrada). **La herramienta DEV ya existe (DEV-01 cerrada, 2026-11-17):** la validación literal queda pendiente de ejecución.
 
 Como usuario, quiero crear barrios con un nombre y una paleta cromática, y gastar sus monedas locales en mejoras, decoraciones y nivelación de terreno, para organizar mis ámbitos de vida y embellecer cada distrito de forma aislada.  
 #### Criterios de Aceptación (Dominio y Reglas):
@@ -327,7 +327,7 @@ Como sistema, necesito devolver las tareas inconclusas al listado general cuando
 **Estado: VALIDADO a mano (2026-11-15).** Fatiga visible y cobro a la mitad desde la 6ª tarea; rotación de jornada al recargar con reciclaje de tareas, contadores en 0, tesorería intacta y sin eventos fantasma en la segunda recarga.
 
 ### US-06 (usuario): Gestión, Mudanza y Retiro de Hábitos `[DONE]`
-> **Alcance cerrado:** los 5 CAs están implementados y testeados (43 tests nuevos; 180 en el proyecto). **Fase 4 cerrada:** Plaza de Infraestructura y Museo de Hábitos en el Inspector, check-in en la Pizarra Diaria, mudanza con confirmación inline. El HUD no muestra eficiencia ni tasa de monedas: son de US-07 CA-01 (ver nota de la Prueba 1). **Pruebas 1-2 validadas a mano (2026-11-15).** **Prueba 3 diferida a DEV-01:** validar el retiro al Museo exige sembrar un hábito Nivel 5 sin ensuciar el XP real, y la herramienta DEV todavía no existe.
+> **Alcance cerrado:** los 5 CAs están implementados y testeados (43 tests nuevos; 180 en el proyecto). **Fase 4 cerrada:** Plaza de Infraestructura y Museo de Hábitos en el Inspector, check-in en la Pizarra Diaria, mudanza con confirmación inline. El HUD no muestra eficiencia ni tasa de monedas: son de US-07 CA-01 (ver nota de la Prueba 1). **Pruebas 1-2 validadas a mano (2026-11-15).** **Prueba 3 desbloqueada, pendiente de ejecución (2026-11-17):** la herramienta DEV ya existe (DEV-01 cerrada), así que se puede sembrar un hábito Nivel 5 sin ensuciar el XP real. El orden de retiro al Museo sigue sin validar a mano.
 Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, cambiar su frecuencia, mudarlos de distrito o retirarlos al museo cuando alcancen su nivel máximo, para consolidar mis rutinas y liberar espacio manteniendo su reconocimiento histórico.   
 
 
@@ -620,7 +620,18 @@ Como sistema, necesito poner la ciudad en hibernación cuando detecte una inacti
 
 
 
-### US-12 (usuario): Comandos Rápidos, Reversibilidad Manual y Respaldos: `[IN PROGRESS]`
+### US-12 (usuario): Comandos Rápidos, Reversibilidad Manual y Respaldos: `[DONE]`
+> **Alcance cerrado:** los 4 CAs están implementados y testeados (419 tests en el proyecto) y las **Pruebas 1-3 validadas a mano (2026-11-17)**, incluido el round-trip export → import de una ciudad nacida en el Día Cero.
+>
+> - **CA-01:** `Ctrl+K` abre el palette; `parseQuickCommand` vive en `src/core/rules` (commit anterior) y el store despacha `agua`, `leer <N>`, `t <barrio> <título> !<peso>` y `pomo <barrio> <minutos>`. El HUD no reimplementa gramática: sólo transporta la cadena.
+> - **CA-02:** `commitWithUndo` captura la instantánea en la misma transacción que aplica la acción; `undoLastAction` devuelve `GameState` o rechazo por ventana vencida, y el `ACTION_UNDONE` sale por `commit` (no por `appendEvent`), decisión que cierra el pendiente heredado de US-01 CA-04.
+> - **CA-03:** `Ctrl+.` alterna Modo Zen y `Escape` sale. `TopBar` **no** se desmonta —vive en variante compacta con el reloj— porque desmontarla mataría el cronómetro en curso; el slot de `FocusTimer` es estable por la misma razón.
+> - **CA-04:** el esquema Zod construye **el mismo catálogo dos veces**: estricto al importar (una clave desconocida invalida el archivo) y tolerante al exportar (la descarta). El import reemplaza `game_state` y `domain_events` en una transacción y vacía la cola de reversibilidad. Las herramientas DEV sólo se montan bajo `import.meta.env.DEV`, verificado contra el bundle de producción.
+>
+> **Regla que salió de este cierre:** todo campo requerido que se agregue a `GameState` o a sus entidades necesita un backfill en la puerta de hidratación (`hydrateGameState`) **y** un test de snapshot legado. Sin eso, el respaldo estricto se autorechaza. Cada campo faltante que apareció durante la validación —`aqueduct.lastOperationalDay`, `creditedCoins`, `reactivationPenaltyUntil`, `houses[].createdAt`, `habits[].lastFrequencyChangeAt`, `tasks[].createdAt/completedAt`, `focusSessions[].presetId`, `dailyTasksCompletedCount`, `decorations`— dejó su caso en `backupLegacy.test.ts`.
+>
+> **Deuda que este cierre NO salda:** `GOVERNANCE.md` §110 le asigna a US-12 el `schemaVersion` y la política de migraciones de `.todotown`. El archivo declara `version: 1`, pero **no existe política de migración** ni versión en el `game_state` persistido. La causa raíz de la tanda de bugs de hoy es que `loadState` es un `cast` sin validación: el export tolerante tapa el síntoma en la salida, no la puerta de entrada. Registrada como **MIG-01**.
+
 Como usuario, quiero ejecutar acciones mediante comandos de teclado, deshacer equivocaciones recientes, ocultar la interfaz con un modo limpio y exportar o importar mis datos, para operar la aplicación con agilidad y total control sobre mi información.  
 
 #### Criterios de Aceptación (Dominio, Adaptadores y HUD):
@@ -668,7 +679,7 @@ Como usuario, quiero ejecutar acciones mediante comandos de teclado, deshacer eq
 
 
 ### US-13 (sistema): Gestión y Expiración de la Ventana de Reversibilidad: `[DONE]`
-> **Alcance cerrado:** dominio (2026-11-17), con 384 tests en el proyecto. Los 3 CAs están en verde como reglas puras de `src/core/rules`: `createUndoSnapshot` registra `actionId`, `description`, `createdAt`, `expiresAt = now + 300_000` y una copia **aislada** del estado previo (`structuredClone`, no la referencia viva); `undoAction(snapshot, now)` devuelve `{ status: 'UNDONE', state }` o `{ status: 'REJECTED', reason: 'UNDO_WINDOW_EXPIRED' }`, y `pruneExpiredSnapshots(queue, now)` descarta las vencidas devolviendo una cola nueva. El borde es inclusivo y está clavado por tests en las dos reglas: `now === expiresAt` todavía revierte, `now === expiresAt + 1` no. El rechazo no expone `state`, así que el store **no puede** emitir un `ACTION_UNDONE` con una reversión vencida: la garantía es de tipos, no de disciplina. **Fase 4 diferida a la tanda de UI posterior:** la cola todavía no vive en `useGameStore` ni hay UndoToast. El evento `ACTION_UNDONE` se emite vía `commit` (no vía `appendEvent`), decisión que desbloquea US-12 CA-02.
+> **Alcance cerrado:** dominio (2026-11-17), con 384 tests en el proyecto. Los 3 CAs están en verde como reglas puras de `src/core/rules`: `createUndoSnapshot` registra `actionId`, `description`, `createdAt`, `expiresAt = now + 300_000` y una copia **aislada** del estado previo (`structuredClone`, no la referencia viva); `undoAction(snapshot, now)` devuelve `{ status: 'UNDONE', state }` o `{ status: 'REJECTED', reason: 'UNDO_WINDOW_EXPIRED' }`, y `pruneExpiredSnapshots(queue, now)` descarta las vencidas devolviendo una cola nueva. El borde es inclusivo y está clavado por tests en las dos reglas: `now === expiresAt` todavía revierte, `now === expiresAt + 1` no. El rechazo no expone `state`, así que el store **no puede** emitir un `ACTION_UNDONE` con una reversión vencida: la garantía es de tipos, no de disciplina. **Fase 4 cerrada (2026-11-17):** la cola vive en `useGameStore` (`undoQueue`, `commitWithUndo`, `undoLastAction`), el `UndoToast` se monta en `App` y `pruneExpiredSnapshots` corre en cada acción y en cada tick. El evento `ACTION_UNDONE` se emite vía `commit` (no vía `appendEvent`), decisión que desbloqueó US-12 CA-02.
 
 El sistema debe gestionar y depurar el historial de acciones reversibles pasados unos minutos de forma transparente, para que el usuario pueda corregir clics accidentales al instante sin comprometer el rendimiento de la aplicación.  
 
@@ -708,7 +719,19 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **Alcance mínimo cuando se tome:** función pura en `src/adapters/dev-tools/` que devuelva un `GameState` con la tesorería inyectada, acción espejo en `useGameStore` y botón visible sólo bajo `import.meta.env.DEV`. **Entra con test**: produce estado, no es un detalle de presentación.
 
-**Estado:** diferido por decisión explícita del usuario. No se inventa antes.
+**Estado: CERRADA (2026-11-17).** `treasuryInjection.ts` en `src/adapters/dev-tools/` (función pura con test) y `setNeighborhoodTreasury` en el store, que persiste con `saveState` y **no** emite evento de dominio: sembrar saldo para una prueba no ensucia el Outbox de la ciudad real. El panel se monta sólo bajo `import.meta.env.DEV`, detrás del menú `+` del navbar; verificado que "Sembrar" no aparece en el bundle de producción. **Las Pruebas 3 de US-02 y US-06 quedan desbloqueadas, pendientes de ejecución.**
+
+### MIG-01: Versión y migración del estado persistido
+
+**Origen:** el cierre de US-12 expuso que `loadState` es un `cast` sin validación. Un snapshot de IndexedDB puede traer campos que el tipo ya no declara (`aqueduct.lastOperationalDay`, `creditedCoins`) y le faltan campos que el tipo ahora exige (`reactivationPenaltyUntil`, `houses[].createdAt`, `focusSessions[].presetId`, …). El export tolerante de `.todotown` y los backfills de `hydrateGameState` resuelven los casos conocidos **hoy**, pero la puerta de entrada sigue sin verificar nada: el próximo campo que se agregue al tipo y se olvide de rellenar rompe el respaldo otra vez, con el mismo síntoma.
+
+**Dependencia:** `GOVERNANCE.md` §110 ya le asigna a US-12 el `schemaVersion` y la política de migraciones de `.todotown`. El archivo declara `version: 1`, pero no hay política de migración ni versión en el `game_state` persistido.
+
+**Pendiente:** (1) persistir una versión junto al `game_state`; (2) normalizar al hidratar contra el esquema **tolerante** —el mismo que usa el export— registrando qué descartó, para que un snapshot viejo nunca llegue inválido a memoria; (3) declarar qué pasa cuando la versión del archivo es mayor que la del build (hoy un respaldo nuevo importado en un build viejo perdería campos en silencio si el import fuera tolerante; por eso sigue estricto).
+
+**No incluye:** relajar el import. El import se queda estricto; lo que se endurece es la hidratación local.
+
+**Estado:** registrada al cerrar US-12 (2026-11-17).
 
 ### UI-01: Formalizar el sistema de diseño "Odyssey OS"
 
