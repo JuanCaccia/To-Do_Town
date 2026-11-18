@@ -620,7 +620,7 @@ Como sistema, necesito poner la ciudad en hibernación cuando detecte una inacti
 
 
 
-### US-12 (usuario): Comandos Rápidos, Reversibilidad Manual y Respaldos: 
+### US-12 (usuario): Comandos Rápidos, Reversibilidad Manual y Respaldos: `[IN PROGRESS]`
 Como usuario, quiero ejecutar acciones mediante comandos de teclado, deshacer equivocaciones recientes, ocultar la interfaz con un modo limpio y exportar o importar mis datos, para operar la aplicación con agilidad y total control sobre mi información.  
 
 #### Criterios de Aceptación (Dominio, Adaptadores y HUD):
@@ -667,7 +667,9 @@ Como usuario, quiero ejecutar acciones mediante comandos de teclado, deshacer eq
 
 
 
-### US-13 (sistema): Gestión y Expiración de la Ventana de Reversibilidad: 
+### US-13 (sistema): Gestión y Expiración de la Ventana de Reversibilidad: `[DONE]`
+> **Alcance cerrado:** dominio (2026-11-17), con 384 tests en el proyecto. Los 3 CAs están en verde como reglas puras de `src/core/rules`: `createUndoSnapshot` registra `actionId`, `description`, `createdAt`, `expiresAt = now + 300_000` y una copia **aislada** del estado previo (`structuredClone`, no la referencia viva); `undoAction(snapshot, now)` devuelve `{ status: 'UNDONE', state }` o `{ status: 'REJECTED', reason: 'UNDO_WINDOW_EXPIRED' }`, y `pruneExpiredSnapshots(queue, now)` descarta las vencidas devolviendo una cola nueva. El borde es inclusivo y está clavado por tests en las dos reglas: `now === expiresAt` todavía revierte, `now === expiresAt + 1` no. El rechazo no expone `state`, así que el store **no puede** emitir un `ACTION_UNDONE` con una reversión vencida: la garantía es de tipos, no de disciplina. **Fase 4 diferida a la tanda de UI posterior:** la cola todavía no vive en `useGameStore` ni hay UndoToast. El evento `ACTION_UNDONE` se emite vía `commit` (no vía `appendEvent`), decisión que desbloquea US-12 CA-02.
+
 El sistema debe gestionar y depurar el historial de acciones reversibles pasados unos minutos de forma transparente, para que el usuario pueda corregir clics accidentales al instante sin comprometer el rendimiento de la aplicación.  
 
 
