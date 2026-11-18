@@ -117,6 +117,13 @@ export const BUTTON_PRIMARY_ON_DARK =
 export const BUTTON_OUTLINE_ON_DARK =
   'rounded-none border border-pearl px-4 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-600 disabled:text-neutral-500 disabled:hover:bg-transparent disabled:hover:text-neutral-500';
 
+/**
+ * Descarte de una notificación sobre el chrome negro. Su primer consumidor es
+ * la cruz del UndoToast, que renuncia a la oportunidad de revertir.
+ */
+export const BUTTON_DISMISS_ON_DARK =
+  'rounded-none border border-neutral-800 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-400 transition-colors hover:border-pearl hover:text-pearl';
+
 /** Caja cerrada del combo sobre el chrome negro (la lista la dibuja `Combo`). */
 export const SELECT_ON_DARK =
   'rounded-none border border-neutral-600 bg-black px-2 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:border-pearl focus:border-pearl focus:outline-none';
@@ -124,6 +131,17 @@ export const SELECT_ON_DARK =
 /** Numeric input on the black chrome. Focus is never removed, only recoloured. */
 export const INPUT_ON_DARK =
   'rounded-none border border-neutral-400 bg-transparent px-2 py-2 font-mono text-base font-bold leading-none text-pearl placeholder:text-neutral-500 focus:border-pearl focus:outline-none';
+
+/**
+ * Item del menú desplegable del chrome. El hover invierte el bloque, como todo
+ * control sobre negro: una fila de menú sin respuesta visual no se lee.
+ */
+export const MENU_ITEM_ON_DARK =
+  'rounded-none border-b border-neutral-800 px-3 py-2 text-left font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors last:border-b-0 hover:bg-pearl hover:text-black';
+
+/** Aviso efímero del chrome, anclado arriba a la derecha (cupo, respaldo, pausa). */
+export const TOAST_ON_DARK =
+  'fixed right-4 top-16 z-50 border border-pearl bg-black px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-pearl';
 
 /**
  * Option chip on the black chrome. Selection is carried by the inverted block,

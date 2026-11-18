@@ -38,6 +38,8 @@ const FOCUS_TIER_LABEL: Record<FocusTier, string> = {
 
 interface FocusTimerProps {
   state: GameState;
+  /** US-12 CA-03: indicador compacto del reloj para el Modo Zen. */
+  compact?: boolean;
 }
 
 /**
@@ -57,8 +59,10 @@ interface FocusTimerProps {
  * panel perla nuevo sería la cuarta superficie y `UI_DESIGN.md` §7 auditoría 8
  * fija exactamente tres.
  */
-export function FocusTimer({ state }: FocusTimerProps) {
+export function FocusTimer({ state, compact = false }: FocusTimerProps) {
   const recordFocus = useGameStore((store) => store.recordFocus);
+  const focusRequest = useGameStore((store) => store.focusRequest);
+  const consumeFocusRequest = useGameStore((store) => store.consumeFocusRequest);
   const neighborhoods = Object.keys(state.neighborhoods);
   const presets = state.config.pomodoroPresets;
 
@@ -91,6 +95,34 @@ export function FocusTimer({ state }: FocusTimerProps) {
 
     return () => clearInterval(intervalId);
   }, [startedAt]);
+
+  // US-12 CA-01: el comando `pomo` deja una solicitud de un solo uso. Si ya hay
+  // un bloque en curso la solicitud se descarta: un comando abre un set nuevo,
+  // nunca destruye minutos que ya transcurrieron.
+  useEffect(() => {
+    if (focusRequest === null) {
+      return;
+    }
+
+    const requested = consumeFocusRequest();
+
+    if (requested === null || block !== null) {
+      return;
+    }
+
+    const requestedPreset = presets.find((candidate) => candidate.id === requested.presetId);
+
+    if (requestedPreset === undefined) {
+      return;
+    }
+
+    setNeighborhoodId(requested.neighborhoodId);
+    setPresetId(requested.presetId);
+    setWorkBlocksCompleted(0);
+    startBlock({ kind: 'WORK', minutes: requestedPreset.workMinutes });
+    // La solicitud se consume una sola vez; `block` y `presets` salen del render que la recibió.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest]);
 
   useEffect(() => {
     if (startedAt === null || targetMs === 0 || elapsedMs < targetMs) {
@@ -203,6 +235,11 @@ export function FocusTimer({ state }: FocusTimerProps) {
   }
 
   if (block === null) {
+    // En Zen no hay sesión que mostrar: la franja queda vacía a la izquierda.
+    if (compact) {
+      return null;
+    }
+
     if (isComposing) {
       return (
         <PomodoroPresetForm
@@ -284,7 +321,7 @@ export function FocusTimer({ state }: FocusTimerProps) {
     <div className="flex items-center gap-1.5">
       <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
         {BLOCK_LABEL[block.kind]}
-        {preset !== undefined && (
+        {compact === false && preset !== undefined && (
           <span className="ml-1 text-neutral-500">
             {preset.name}
             {isWorkBlock
