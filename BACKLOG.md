@@ -327,7 +327,7 @@ Como sistema, necesito devolver las tareas inconclusas al listado general cuando
 **Estado: VALIDADO a mano (2026-11-15).** Fatiga visible y cobro a la mitad desde la 6ª tarea; rotación de jornada al recargar con reciclaje de tareas, contadores en 0, tesorería intacta y sin eventos fantasma en la segunda recarga.
 
 ### US-06 (usuario): Gestión, Mudanza y Retiro de Hábitos `[DONE]`
-> **Alcance cerrado:** los 5 CAs están implementados y testeados (43 tests nuevos; 180 en el proyecto). **Fase 4 cerrada:** Plaza de Infraestructura y Museo de Hábitos en el Inspector, check-in en la Pizarra Diaria, mudanza con confirmación inline. El HUD no muestra eficiencia ni tasa de monedas: son de US-07 CA-01 (ver nota de la Prueba 1). **Pruebas 1-2 validadas a mano (2026-11-15).** **Prueba 3 desbloqueada, pendiente de ejecución (2026-11-17):** la herramienta DEV ya existe (DEV-01 cerrada), así que se puede sembrar un hábito Nivel 5 sin ensuciar el XP real. El orden de retiro al Museo sigue sin validar a mano.
+> **Alcance cerrado:** los 5 CAs están implementados y testeados (43 tests nuevos; 180 en el proyecto). **Fase 4 cerrada:** Plaza de Infraestructura y Museo de Hábitos en el Inspector, check-in en la Pizarra Diaria, mudanza con confirmación inline. El HUD no muestra eficiencia ni tasa de monedas: son de US-07 CA-01 (ver nota de la Prueba 1). **Pruebas 1-2 validadas a mano (2026-11-15).** **Prueba 3 desbloqueada (2026-11-19), pendiente de ejecución:** exige un hábito en `checkpointLevel === 5`, y eso son 100 jornadas de check-in. `Herramientas DEV` en el menú `+` siembra ese nivel (`setHabitCheckpointLevel`) sin tocar el XP del Ayuntamiento ni emitir eventos, así que el registro queda en 1/4 → retirar → 3/4 con la placa en el Museo. La corrección del 2026-11-19 dejó constancia de que el desbloqueo anterior era falso: la herramienta DEV sólo sembraba saldo.
 Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, cambiar su frecuencia, mudarlos de distrito o retirarlos al museo cuando alcancen su nivel máximo, para consolidar mis rutinas y liberar espacio manteniendo su reconocimiento histórico.   
 
 
@@ -408,7 +408,7 @@ Como usuario, quiero registrar hábitos en un barrio, marcar su cumplimiento, ca
 
 
 ### US-07 (sistema): Producción Pasiva y Decaimiento con Piso Seguro `[DONE]`
-> **Alcance cerrado: dominio.** Los 4 CAs están implementados y testeados (54 tests nuevos; 234 en el proyecto). **La US no declara Pruebas de Usuario ni Fase 4 propias**, así que no hay HUD que validar aquí: su única consecuencia visible —eficiencia y tasa de monedas por hora— es la deuda visual `UX-02`, que US-06 difirió explícitamente a esta US y que **no es un CA del motor**. Queda además una precisión abierta en `ECONOMY.md` §2.1.1: el "margen de gracia" del switch `DAILY` está fijado en 4 h como constante económica (`HABIT_DAILY_GRACE_HOURS`), **no** en `config.dayCycle.gracePeriodHours`.
+> **Alcance cerrado: dominio.** Los 4 CAs están implementados y testeados (54 tests nuevos; 234 en el proyecto). **La US no declara Pruebas de Usuario ni Fase 4 propias**, así que no hay HUD que validar aquí: su única consecuencia visible —eficiencia y tasa de monedas por hora— es la deuda visual `UX-02`, que US-06 difirió explícitamente a esta US y que **no es un CA del motor**. `ECONOMY.md` §2.1.1 quedó completo respecto de esta US: fija el "margen de gracia" del switch `DAILY` en **4 h** (`HABIT_DAILY_GRACE_HOURS`) y aclara que **no** es `config.dayCycle.gracePeriodHours` — ese desplaza el reloj de la jornada operativa (US-05) y es configurable; este es una duración económica fija medida desde `lastCompletedAt`.
 
 El sistema debe calcular la generación pasiva de monedas y reducir gradualmente la eficiencia del hábito según el tiempo transcurrido sin cumplirse de forma transparente, para que el usuario reciba ingresos constantes por su constancia y conserve su último piso seguro sin castigos destructivos si falla.  
 
@@ -719,7 +719,9 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **Alcance mínimo cuando se tome:** función pura en `src/adapters/dev-tools/` que devuelva un `GameState` con la tesorería inyectada, acción espejo en `useGameStore` y botón visible sólo bajo `import.meta.env.DEV`. **Entra con test**: produce estado, no es un detalle de presentación.
 
-**Estado: CERRADA (2026-11-17).** `treasuryInjection.ts` en `src/adapters/dev-tools/` (función pura con test) y `setNeighborhoodTreasury` en el store, que persiste con `saveState` y **no** emite evento de dominio: sembrar saldo para una prueba no ensucia el Outbox de la ciudad real. El panel se monta sólo bajo `import.meta.env.DEV`, detrás del menú `+` del navbar; verificado que "Sembrar" no aparece en el bundle de producción. **Las Pruebas 3 de US-02 y US-06 quedan desbloqueadas, pendientes de ejecución.**
+**Estado: CERRADA (2026-11-17).** `treasuryInjection.ts` en `src/adapters/dev-tools/` (función pura con test) y `setNeighborhoodTreasury` en el store, que persiste con `saveState` y **no** emite evento de dominio: sembrar saldo para una prueba no ensucia el Outbox de la ciudad real. El panel se monta sólo bajo `import.meta.env.DEV`, detrás del menú `+` del navbar; verificado que "Sembrar" no aparece en el bundle de producción.
+
+**Extensión (2026-11-19): segundo consumidor, ahora implementado.** El cierre de 2026-11-17 declaró desbloqueada la Prueba 3 de US-06 sin serlo: esta deuda sólo había sembrado saldo, y esa prueba exige `checkpointLevel === 5`. Se agregó `injectHabitCheckpointLevel` (`habitLevelInjection.ts`, función pura con 4 tests), su acción espejo `setHabitCheckpointLevel` en el store —mismo contrato: `saveState` y sin evento— y una segunda fila en `DevToolsPanel`. La entrada del menú `+` pasó de "Sembrar CR" a "Herramientas DEV", porque ya cubre dos operaciones. **Las Pruebas 3 de US-02 y US-06 quedan desbloqueadas de verdad, pendientes de ejecución a mano.**
 
 ### MIG-01: Versión y migración del estado persistido
 
@@ -772,7 +774,7 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **Alcance mínimo:** agregar una fila/sección en `ECONOMY.md` §2.1 con el cooldown y, si corresponde, la fórmula de la ventana `T` que hoy vive en `DOMAIN_DESIGN.md` §4. No es un cambio de código: el valor ya está en su lugar.
 
-**Estado: CERRADA (2026-11-15).** `ECONOMY.md` §2.1.1 declara la fórmula `T = (7/X)·24 + 12h + InerciaUrbana` (copiada de US-07 CA-01), remite el bono de Inercia Urbana a §4.1 en lugar de duplicarlo y fija el cooldown de frecuencia en 7 × 24 h exactas. Queda **una** precisión abierta, anotada ahí mismo: US-07 CA-01 no cuantifica el "margen de gracia" del switch `DAILY`. Esa definición es de US-07, no de este documento.
+**Estado: CERRADA (2026-11-15).** `ECONOMY.md` §2.1.1 declara la fórmula `T = (7/X)·24 + 12h + InerciaUrbana` (copiada de US-07 CA-01), remite el bono de Inercia Urbana a §4.1 en lugar de duplicarlo y fija el cooldown de frecuencia en 7 × 24 h exactas. **Sin residuo.** La precisión que este registro declaraba abierta está saldada en el propio documento: §2.1.1 fija el margen de gracia del switch `DAILY` en `4 h` (`HABIT_DAILY_GRACE_HOURS`) y lo distingue explícitamente de `config.dayCycle.gracePeriodHours`. No queda nada pendiente de `ECONOMY.md`.
 
 ### VAL-01: Validación de entrada del hábito sin dueño explícito
 
