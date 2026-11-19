@@ -1,3 +1,4 @@
+
 # To-Do Town
 
 Idle game de gestión de hábitos. Motor de dominio puro en `src/core`, estado en `src/state`, persistencia en `src/adapters` y UI en `src/ui/hud`.
@@ -134,3 +135,6 @@ Collattice publica un skill drop-in con la referencia operativa completa (conexi
 | HumanUser | `1` | CRUD sobre sus propias tarjetas, comentarios y adjuntos |
 | AgentUser | `2` | Igual que Human, pero no puede borrar tarjetas |
 | AgentAdministrator | `3` | Rol agent + administración del board (lanes, sizes, labels, prune, bulk) |
+
+
+
