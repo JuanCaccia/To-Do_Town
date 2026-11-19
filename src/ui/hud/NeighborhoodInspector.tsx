@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DECORATION_CATALOG } from '../../core/constants/economyConstants';
 import { levelNeighborhoodBlock } from '../../core/rules/blockLeveling';
+import { getDistrictProductionRate } from '../../core/rules/districtProduction';
 import { upgradeNeighborhoodInfrastructure } from '../../core/rules/infrastructureUpgrade';
 import type { DecorationKind, EntityId, GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
@@ -60,6 +61,11 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
     0,
   );
 
+  // UX-02: la tasa del distrito en este instante. Se lee del motor en cada
+  // render —el HUD ya re-renderiza en cada tick—, nunca se persiste ni se
+  // recalcula acá: la curva y el multiplicador son de `core/rules`.
+  const production = getDistrictProductionRate(state, neighborhoodId, Date.now());
+
   async function handleUpgrade() {
     setPending(true);
     const result = await upgradeInfrastructure(neighborhoodId);
@@ -88,7 +94,25 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
     <section className="rounded-none bg-pearl text-black">
       <PanelTitle
         emphasis
-        meta={<span className={BADGE}>NV.{neighborhood.infrastructureLevel}</span>}
+        meta={
+          <span className="flex items-center gap-3">
+            {/* UX-02: eficiencia y tasa del distrito, junto a su nivel. Vive
+                sólo acá —el inspector es la vista desplegada—; la sidebar se
+                queda con su fila escueta. */}
+            <span className="flex items-baseline gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
+                Prod
+              </span>
+              <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-pearl">
+                {Math.round(production.efficiency * 100)}%
+              </span>
+              <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-pearl">
+                {production.coinsPerHour.toFixed(2)} CR/h
+              </span>
+            </span>
+            <span className={BADGE}>NV.{neighborhood.infrastructureLevel}</span>
+          </span>
+        }
       >
         {neighborhood.name}
       </PanelTitle>

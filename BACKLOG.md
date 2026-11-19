@@ -760,7 +760,11 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **Fuera de alcance:** el encendido de ventanas del edificio isométrico expresa la **misma** eficiencia en el lienzo (`DOMAIN_DESIGN.md` §6). Si se quiere, es un criterio visual aparte; no entra por arrastre en esta deuda.
 
-**Estado:** registrada. Espera su propio carril visual; **no** se implementa como corrección silenciosa de un "bug" de US-06.
+**Estado: CERRADA (2026-11-19).** Decisión del usuario: los indicadores van **junto al nivel del distrito en el Inspector** (la vista desplegada), **no** en la fila de la sidebar.
+- `getDistrictProductionRate(state, neighborhoodId, now)` en `src/core/rules/districtProduction.ts` devuelve `{ coinsPerHour, fullCapacityCoinsPerHour, efficiency }`. Es aritmética sobre reglas existentes —`getHabitEfficiencyRatio` (US-07) y `getNeighborhoodMultiplier` (US-11, `M_barrio`)—, no una segunda implementación de la liquidación: `settlePassiveProduction` sigue siendo el único que devenga.
+- La eficiencia **incluye** la penalización: un distrito en Arranque de Motores no puede mostrar más del 50%, porque el número describe lo que produce, no lo que podría producir. `fullCapacityCoinsPerHour` es la referencia (todos los hábitos activos al 100%, sin penalización) y existe para que el `%` tenga denominador explícito.
+- Hábito en pausa no ocupa capacidad; hábito en Apagón ocupa capacidad y aporta cero. Un distrito sin hábitos activos devuelve ceros, no `NaN`.
+- El HUD lo lee en el header del Inspector (`Prod 66% 3.30 CR/h` + `NV.x`); la sidebar conserva su fila escueta. Se relee en cada render, nunca se persiste (DEC-005).
 
 ### DOC-01: `ECONOMY.md` no declara el cooldown de cambio de frecuencia
 
