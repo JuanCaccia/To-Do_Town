@@ -59,8 +59,8 @@ El desarrollo se divide en **3 Etapas evolutivas**:
     4. **Barra Inferior y Comandos:** Toast de Reversibilidad (5 min), Modo Zen, botón de Backup `.todotown` y **Command Palette (`Ctrl+K`)**.
 
 * **Criterio de Salida (Gate 1.1 - Dogfooding Temprano y Sellado del Core):**
-  * [ ] Todas las User Stories de la Épica 1 en `BACKLOG.md` marcadas como `[DONE]`, `npm run typecheck` sin errores, `src/core` con cero imports externos y suite de **Vitest** al 100% en verde.
-  * [ ] **Prueba de uso real de 7 días continuos** operando la aplicación mediante el HUD, calibrando cualquier constante económica en `ECONOMY.md` antes de construir el motor gráfico.
+  * [x] Todas las User Stories de la Épica 1 en `BACKLOG.md` marcadas como `[DONE]`, `npm run typecheck` sin errores, `src/core` con cero imports externos y suite de **Vitest** al 100% en verde. *(Verificado 2026-11-19: US-00 a US-13 `[DONE]`, 436 tests en 53 archivos, `typecheck` limpio, `grep` de imports externos en `src/core` sin resultados. Las deudas registradas —DEV-01, MIG-01, UI-01, DOC-01, VAL-01, UX-02— están cerradas; UX-01 es una decisión permanente, no deuda.)*
+  * [ ] **Prueba de uso real de 7 días continuos** operando la aplicación mediante el HUD, calibrando cualquier constante económica en `ECONOMY.md` antes de construir el motor gráfico. *(No es verificable por el agente: depende de 7 días de calendario operando la ciudad real. Es el único criterio de Gate 1.1 todavía abierto.)*
 
 ---
 
