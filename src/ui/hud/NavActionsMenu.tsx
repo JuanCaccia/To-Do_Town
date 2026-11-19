@@ -17,7 +17,7 @@ const NOTICE_VISIBLE_MS = 4_000;
  * Rincón derecho de la navbar: un solo disparador `+` y un panel de acción.
  *
  * En reposo hay **un** botón. Al abrirlo aparece el menú con las acciones
- * (respaldo, siembra DEV, pausa/reanudar); elegir una deja únicamente esa
+ * (respaldo, herramientas DEV, pausa/reanudar); elegir una deja únicamente esa
  * acción en el rincón, y al terminar —o al cancelar con la `×`— vuelve el `+`.
  * El menú no tiene item "Cerrar": se cierra con `Escape` o con un clic afuera,
  * porque las tres opciones del menú son acciones, no navegación.
@@ -126,7 +126,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
               className={MENU_ITEM_ON_DARK}
               onClick={() => setPanel('seed')}
             >
-              Sembrar CR
+              Herramientas DEV
             </button>
           )}
 

@@ -3,6 +3,7 @@ import { CryptoIdAdapter } from '../adapters/id/CryptoIdAdapter';
 import { buildBackupFile, parseBackupFile } from '../adapters/backup/backupSchema';
 import type { BackupFile } from '../adapters/backup/backupSchema';
 import { IndexedDBAdapter } from '../adapters/storage/IndexedDBAdapter';
+import { injectHabitCheckpointLevel } from '../adapters/dev-tools/habitLevelInjection';
 import { injectTreasury } from '../adapters/dev-tools/treasuryInjection';
 import { createNeighborhood } from '../core/entities/neighborhood';
 import { createHabit } from '../core/entities/habit';
@@ -120,6 +121,11 @@ export interface GameStoreState {
   importBackup(raw: unknown): Promise<BackupImportOutcome>;
   /** DEV-01: siembra de saldo para pruebas manuales; sólo la usa el panel DEV. */
   setNeighborhoodTreasury(neighborhoodId: EntityId, coins: number): Promise<void>;
+  /**
+   * DEV-01 (extensión): siembra el nivel de un hábito para validar la US-06
+   * Prueba 3, que exige `checkpointLevel === 5`. Sólo la usa el panel DEV.
+   */
+  setHabitCheckpointLevel(habitId: EntityId, level: number): Promise<void>;
   hydrate(now: TimestampMs): Promise<void>;
   tick(): Promise<void>;
   createNeighborhood(input: { name: string; paletteId: string }): Promise<EntityId>;
@@ -342,6 +348,23 @@ export function createGameStore(deps: GameStoreDeps) {
       async setNeighborhoodTreasury(neighborhoodId, coins) {
         const settled = requireSettledState();
         const next = injectTreasury(settled, neighborhoodId, coins);
+
+        if (next === settled) {
+          return;
+        }
+
+        await deps.storage.saveState(next);
+        set({ state: next });
+      },
+
+      /**
+       * DEV-01 (extensión): misma forma que la siembra de saldo, por el mismo
+       * motivo. No pasa por `commit`: un nivel sembrado a mano no es un evento
+       * de dominio y contaminaría el Outbox. Persiste y nada más.
+       */
+      async setHabitCheckpointLevel(habitId, level) {
+        const settled = requireSettledState();
+        const next = injectHabitCheckpointLevel(settled, habitId, level);
 
         if (next === settled) {
           return;
