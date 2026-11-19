@@ -1,24 +1,101 @@
-
 # To-Do Town
 
-Idle game de gestión de hábitos. Motor de dominio puro en `src/core`, estado en `src/state`, persistencia en `src/adapters` y UI en `src/ui/hud`.
+**Idle-city builder que gamifica tus hábitos y tareas reales.**
+
+To-Do Town es un gestor de hábitos y pendientes disfrazado de *idle game*: cada hábito que sostenés produce monedas para tu barrio, cada tarea que terminás construye casas, y la ciudad se apaga visualmente cuando dejás de cumplir. Pensado para quedar abierto en el escritorio acompañando tu jornada, no para castigarte.
+
+> **Filosofía del producto:** el progreso solo nace del progreso. No hay castigos destructivos ni demoliciones: fallar detiene la producción, nunca borra lo construido. Y la economía está anclada al tiempo — 1 hora de hábito activo vale siempre lo mismo, el día 1 y el día 500.
+
+## Estado del proyecto
+
+| | |
+| :--- | :--- |
+| **Fase** | Etapa 1 — Web Core & Sandbox (SPA) |
+| **Hito activo** | 1.1 — Ciclo de productividad completo (US-00 a US-13) |
+| **Gate 1.1** | Código cerrado: `typecheck` limpio, `src/core` sin imports externos, **436 tests en 53 archivos** en verde. Resta el dogfooding de 7 días operando la app real. |
+| **Siguiente** | Hito 1.2 — motor isométrico 2:1 (`src/ui/city-canvas`) |
+
+## Qué funciona hoy
+
+- **Día Cero y Barrio Tutorial** que se autodestruye al crear el primer barrio real.
+- **Barrios y urbanización:** tesorería local, mejora de infraestructura (Niveles 1-4), progreso de urbanización y **expansión automática de cuadras** 2×3 por adyacencia.
+- **Tareas** separadas entre *En Obra* (hoy) y *Plano Maestro* (backlog), con reciclaje nocturno y **fatiga laboral de doble capa** (5 por barrio / 8 globales).
+- **Hábitos** con curva continua de enfriamiento, eficiencia por tramos (100% / 66% / 33% / 0%), progresión por Días de Suministro Activo, checkpoints (1, 7, 21, 50, 100), mudanza entre barrios y retiro al Museo.
+- **Producción pasiva y decaimiento** con piso seguro y cálculo determinista por `now`.
+- **Hidratación, lectura y Pomodoro** con presets, curva de fatiga diaria y liquidación de foco.
+- **Pausa manual consciente** (con motivo obligatorio), **auto-pausa por 72h** de inactividad y **Arranque de Motores** al reactivar.
+- **Reversibilidad de 5 minutos** vía eventos compensatorios, **Command Palette** (`Ctrl+K`) y **Pizarra Diaria** (`Ctrl+B`).
+- **Persistencia en IndexedDB** (`game_state` + outbox `domain_events`) y **backup `.todotown`** validado con Zod.
+
+Todavía no existe el lienzo isométrico: el HUD actual opera con tarjetas esquemáticas de barrio. Eso es el Hito 1.2.
 
 ## Stack
 
-React 18 · TypeScript · Vite · Zustand · Vitest
+React 18 · TypeScript (strict) · Vite · Zustand · Tailwind CSS 4 · Zod · Vitest
 
-## Comandos
+## Empezar
 
 ```bash
-npm install           # Dependencias
-npm run dev           # Servidor de desarrollo
-npm run test          # Vitest
-npm run typecheck     # tsc --noEmit
+npm install
+npm run dev        # http://localhost:5173
 ```
+
+| Comando | Qué hace |
+| :--- | :--- |
+| `npm run dev` | Servidor de desarrollo Vite |
+| `npm run test` | Suite completa de Vitest |
+| `npm run test:watch` | Vitest en modo watch |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run build` | Typecheck + build de producción |
+
+## Arquitectura
+
+Clean / Hexagonal simplificada, con el dominio completamente aislado:
+
+```text
+src/
+├── core/          # Dominio: TypeScript puro, determinista, cero imports externos
+│   ├── types/     # Interfaces del modelo y eventos
+│   ├── entities/  # Hábitos, barrios, cuadras, tareas, Pomodoro, Día Cero
+│   ├── rules/     # Fórmulas: decaimiento, fatiga, nivelación, tick, undo
+│   ├── ports/     # Contratos: Storage, EventLog, UnitOfWork, Id
+│   └── constants/ # Constantes económicas
+├── adapters/      # Infraestructura: IndexedDB, backup .todotown, dev-tools
+├── state/         # Aplicación: store Zustand, hidratación, game loop
+└── ui/hud/        # Presentación: paneles, inspector, paleta de comandos
+```
+
+Dos invariantes duros:
+
+1. **`src/core` no importa React, Zustand, DOM ni librerías externas.** Todo el motor es TypeScript puro.
+2. **Determinismo por timestamp.** Ninguna regla llama a `Date.now()`: toda función recibe `(state, now: TimestampMs)` y calcula deltas exactos. El progreso *idle* nunca depende de los FPS.
+
+## Metodología
+
+El repo se construye con **vertical slices guiadas por User Stories** y **Ping-Pong TDD por Criterio de Aceptación**: primero el test en rojo, después la implementación mínima, y los tests nunca se tocan para forzar un verde.
+
+- `GOVERNANCE.md` — Ley suprema del repo: protocolo de alineación y tabla de precedencia.
+- `ROADMAP.md` — Hitos, etapas y Quality Gates.
+- `BACKLOG.md` — User Stories y Criterios de Aceptación. Fuente única de verdad del trabajo activo.
+- `ARCHITECTURE.md` — Estructura de capas y stack por etapas.
+- `DOMAIN_DESIGN.md` — Modelo de dominio, geografía urbana y estética.
+- `ECONOMY.md` — Constantes, fórmulas y topes anti-exploit.
+- `UI_DESIGN.md` — Contrato visual del HUD ("Odyssey OS").
+- `AGENTS.md` — Reglas de pair programming y TDD para agentes.
+
+Si vas a contribuir o a hacer que un agente trabaje acá, leé `GOVERNANCE.md` y `AGENTS.md` primero.
+
+## Roadmap
+
+1. **Etapa 1 — Web Sandbox:** motor de dominio + HUD (completo) y luego lienzo isométrico procedural.
+2. **Etapa 2 — Desktop:** contenedor Tauri v2 + SQLite local + notificaciones del SO.
+3. **Etapa 3 — Ecosistema:** sincronización local-first y cliente móvil de captura rápida.
+
+---
 
 ## Collattice (tablero compartido humano-agente)
 
-[Collattice](https://github.com/MrBildo/collattice) es el tablero kanban self-hosted que usamos para coordinar el trabajo de To-Do Town: un único binario (.NET 10 + SQLite) pensado para que humanos y agentes operen el mismo board.
+Herramienta de coordinación del proyecto, no parte del juego. [Collattice](https://github.com/MrBildo/collattice) es el tablero kanban self-hosted que usamos para coordinar el trabajo: un único binario (.NET 10 + SQLite) pensado para que humanos y agentes operen el mismo board.
 
 ### 1. Levantar el servidor
 
@@ -135,6 +212,3 @@ Collattice publica un skill drop-in con la referencia operativa completa (conexi
 | HumanUser | `1` | CRUD sobre sus propias tarjetas, comentarios y adjuntos |
 | AgentUser | `2` | Igual que Human, pero no puede borrar tarjetas |
 | AgentAdministrator | `3` | Rol agent + administración del board (lanes, sizes, labels, prune, bulk) |
-
-
-
