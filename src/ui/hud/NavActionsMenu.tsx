@@ -3,7 +3,8 @@ import type { GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { BackupControls } from './BackupControls';
 import { CityPauseControl } from './CityPauseControl';
-import { DevToolsPanel } from './DevToolsPanel';
+import { HabitLevelSeedPanel } from './HabitLevelSeedPanel';
+import { TreasurySeedPanel } from './TreasurySeedPanel';
 import {
   BUTTON_OUTLINE_ON_DARK,
   MENU_ITEM_ON_DARK,
@@ -17,12 +18,12 @@ const NOTICE_VISIBLE_MS = 4_000;
  * Rincón derecho de la navbar: un solo disparador `+` y un panel de acción.
  *
  * En reposo hay **un** botón. Al abrirlo aparece el menú con las acciones
- * (respaldo, herramientas DEV, pausa/reanudar); elegir una deja únicamente esa
+ * (respaldo, siembras DEV, pausa/reanudar); elegir una deja únicamente esa
  * acción en el rincón, y al terminar —o al cancelar con la `×`— vuelve el `+`.
  * El menú no tiene item "Cerrar": se cierra con `Escape` o con un clic afuera,
- * porque las tres opciones del menú son acciones, no navegación.
+ * porque las opciones del menú son acciones, no navegación.
  */
-type Panel = 'closed' | 'menu' | 'backup' | 'seed' | 'pause';
+type Panel = 'closed' | 'menu' | 'backup' | 'seed-treasury' | 'seed-level' | 'pause';
 
 interface NavActionsMenuProps {
   state: GameState;
@@ -120,14 +121,25 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
 
           {/* US-12 CA-04: las herramientas DEV sólo existen en desarrollo. */}
           {import.meta.env.DEV && (
-            <button
-              type="button"
-              role="menuitem"
-              className={MENU_ITEM_ON_DARK}
-              onClick={() => setPanel('seed')}
-            >
-              Herramientas DEV
-            </button>
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className={MENU_ITEM_ON_DARK}
+                onClick={() => setPanel('seed-treasury')}
+              >
+                Sembrar CR
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                className={MENU_ITEM_ON_DARK}
+                onClick={() => setPanel('seed-level')}
+              >
+                Sembrar Nivel
+              </button>
+            </>
           )}
 
           {isActive ? (
@@ -154,8 +166,11 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
 
       {panel === 'backup' && <BackupControls onDone={handleDone} onCancel={() => setPanel('closed')} />}
       {panel === 'pause' && <CityPauseControl onDone={handleDone} onCancel={() => setPanel('closed')} />}
-      {panel === 'seed' && import.meta.env.DEV && (
-        <DevToolsPanel state={state} onDone={handleDone} onCancel={() => setPanel('closed')} />
+      {panel === 'seed-treasury' && import.meta.env.DEV && (
+        <TreasurySeedPanel state={state} onDone={handleDone} onCancel={() => setPanel('closed')} />
+      )}
+      {panel === 'seed-level' && import.meta.env.DEV && (
+        <HabitLevelSeedPanel state={state} onDone={handleDone} onCancel={() => setPanel('closed')} />
       )}
 
       {notice !== null && (
