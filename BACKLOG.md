@@ -740,24 +740,25 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **Lo que sigue fuera:** no hay migraciones porque hay una sola versión. Cuando el esquema cambie de forma, la política es: subir `GAME_STATE_VERSION`, agregar el backfill en `normalizeSavedState` y su test de snapshot legado. Ese procedimiento es el que este cierre deja escrito, no una tabla de migraciones.
 
-### MIG-02: Migración del HUD al token layer de Odyssey OS v2.3
+### MIG-02: Migración del HUD al token layer de Odyssey OS v2.4
 
-**Origen:** `UI_DESIGN.md` v2.3 (aprobada por `GOVERNANCE.md` DEC-022) introduce una capa de tokens que el HUD **no** implementa: contextos de superficie (`data-surface`), roles de color (`surface`, `ink`, `ink-muted`, `line`, `accent`, `accent-ink`) declarados una sola vez en `src/index.css`, y `<Zone>` como única mancha perla autorizada. El documento ya es el contrato; el código está en deuda.
+**Origen:** `UI_DESIGN.md` v2.4 (aprobada por `GOVERNANCE.md` DEC-022 y DEC-023) introduce una capa de tokens que el HUD **no** implementa: contextos de superficie (`data-surface`), roles de color (`surface`, `ink`, `ink-muted`, `line`, `fill`, `on-fill`, `accent`, `accent-ink`) declarados una sola vez en `src/index.css`, `<Zone>` con bisel como única mancha autorizada, la retícula de celdas de 1px y la tipografía mono única. El documento ya es el contrato; el código está en deuda.
 
-**Medición al abrir (2026-11-20), `src/ui` + `src/App.tsx`:** 115 clases de color con nombre (`neutral-*`, `red-*`), 62 tamaños arbitrarios `text-[Npx]`, 7 `outline-none` sin reemplazo, 8 alfas `black/30` o `/40` fuera de la lista de §2.2, 10 `text-pearl` fuera de `primitives.tsx`, y **cero** ocurrencias de `text-ink`, `bg-surface`, `data-surface` o `<Zone>`. `src/index.css` sólo declara `--color-pearl`.
+**Medición al abrir (2026-11-20), `src/ui` + `src/App.tsx`:** 115 clases de color con nombre (`neutral-*`, `red-*`), 62 tamaños arbitrarios `text-[Npx]`, 7 `outline-none` sin reemplazo, 8 alfas `black/30` o `/40` fuera de la lista de §2.2, 10 `text-pearl` fuera de `primitives.tsx`, y **cero** ocurrencias de `text-ink`, `bg-surface`, `data-surface` o `<Zone>`. `src/index.css` sólo declara `--color-pearl` (la clase que v2.4 retira).
 
-**Lo que ya cumple:** geometría (radio cero, retícula, divisores *inset*), techo del 65% y sidebar de `17rem` (`NeighborhoodPanel`), y el grueso de la tipografía mono. La migración **no reescribe el layout**: sustituye clases por roles.
+**Lo que ya cumple:** geometría de radio cero, techo del 65% y sidebar de `17rem` (`NeighborhoodPanel`), y el uso de mono en los datos. La migración **no reescribe el layout**: sustituye clases por roles y suma el bisel y la retícula.
 
 **Alcance:**
-1. `src/index.css`: capa de tokens de §2.4 (`@theme` + `@theme inline`, `--c-*` por contexto, `meter-fill`).
-2. `primitives.tsx`: `Zone`, `PanelTitle`, `SectionLabel`, `Rule`, `StatCell`, `Meter`, `Badge`, `ErrorNote`, `BUTTON_PRIMARY` / `BUTTON_OUTLINE` / `BUTTON_CTA`, según §5.
-3. Sustitución archivo por archivo de `neutral-*`, `red-*`, `black/N`, `text-[Npx]` y `outline-none` por los roles de §2.2 y los tokens de §3 y §5.
-4. `data-surface="light"` **sólo** en `<Zone>`; `dark` en cintas, filas seleccionadas, popovers, toasts y overlays. `Tab` y los atajos no se tocan: DEC-015/DEC-022.
-5. Foco visible (§4.1) en todo interactivo: los 7 `outline-none` actuales se reemplazan por `focus-visible:outline-2`.
+1. `src/index.css`: capa de tokens de §2.4 (`@theme` + `@theme inline`, `--c-*` por contexto, `--text-display/h1/h2/label`, `--leading-body`, `--color-edge-hi/lo`, `meter-fill`, `html { font-family: var(--font-mono) }`). **Se elimina `--color-pearl`**: el rol es `surface`.
+2. `primitives.tsx`: `Zone` (con bisel `border-t-2 border-t-edge-hi border-b-6 border-b-edge-lo`), `PanelTitle`, `Marker`, `SectionLabel`, `Rule`, `StatCell`, `Meter`, `Chip`, `ErrorNote`, `BUTTON_PRIMARY` / `BUTTON_OUTLINE`, retícula de celdas, fila de disclosure y enlace de acción, según §5.
+3. Sustitución archivo por archivo de `neutral-*`, `red-*`, `black/N`, `text-[Npx]`, `bg-pearl`/`text-pearl` y `outline-none` por los roles de §2.2 y los tokens de §3 y §5.
+4. `data-surface="light"` **sólo** en `<Zone>`; `dark` en cintas, filas seleccionadas, popovers, toasts y overlays.
+5. Tipografía: eliminar `font-sans` y todo `font-medium`/`font-semibold`; peso normal salvo titulares de columna (§3). Botones, nav y títulos en minúsculas o frase.
+6. Foco visible (§4.1) en todo interactivo: los 7 `outline-none` actuales se reemplazan por `focus-visible:outline-2`.
 
 **Orden sugerido (cada paso deja el árbol compilando):** tokens → primitives → navbar → sidebar → inspector → Drawer → paleta de comandos → toasts → overlays.
 
-**Regla de cierre:** §11 de `UI_DESIGN.md` sobre el árbol completo, con los 10 puntos en vacío y #10 en **3 zonas permanentes + 1 transitoria**. Ese es el gate que convierte el trinquete de §0.3 en ley.
+**Regla de cierre:** §11 de `UI_DESIGN.md` sobre el árbol completo, con los 10 puntos en vacío, #10 en **3 zonas permanentes + 1 transitoria** y la revisión manual de `font-bold` limitada a titulares de columna. Ese es el gate que convierte el trinquete de §0.3 en ley.
 
 **Fuera de alcance:** no cambia comportamiento, no toca `src/core`, no introduce el lienzo isométrico (Hito 1.2) y no rediseña zonas. Si un panel necesita otra forma, es una US aparte.
 
