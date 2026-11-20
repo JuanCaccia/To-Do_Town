@@ -250,7 +250,7 @@ Como usuario, quiero registrar tareas según su complejidad, activarlas en mi pi
 #### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
 
 **Prueba 1: Apertura del Drawer y alta en el Plano Maestro**
-- Acción: Presionar Ctrl+B (o tecla [ / Tab) para desplegar el Drawer Lateral ("La Pizarra Diaria"), ir a la pestaña "Plano Maestro", seleccionar el barrio "Estudio", escribir "Resumir unidad 1", elegir peso COMPLEX (+50% casa / 100 🪙) y guardar.  
+- Acción: Presionar Ctrl+B (o tecla [) para desplegar el Drawer Lateral ("La Pizarra Diaria"), ir a la pestaña "Plano Maestro", seleccionar el barrio "Estudio", escribir "Resumir unidad 1", elegir peso COMPLEX (+50% casa / 100 🪙) y guardar.  
 
 - Resultado esperado: La tarea aparece listada en el "Plano Maestro" bajo el barrio "Estudio" sin aparecer aún en la lista activa del día.   
 
@@ -740,13 +740,34 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 **Lo que sigue fuera:** no hay migraciones porque hay una sola versión. Cuando el esquema cambie de forma, la política es: subir `GAME_STATE_VERSION`, agregar el backfill en `normalizeSavedState` y su test de snapshot legado. Ese procedimiento es el que este cierre deja escrito, no una tabla de migraciones.
 
+### MIG-02: Migración del HUD al token layer de Odyssey OS v2.3
+
+**Origen:** `UI_DESIGN.md` v2.3 (aprobada por `GOVERNANCE.md` DEC-022) introduce una capa de tokens que el HUD **no** implementa: contextos de superficie (`data-surface`), roles de color (`surface`, `ink`, `ink-muted`, `line`, `accent`, `accent-ink`) declarados una sola vez en `src/index.css`, y `<Zone>` como única mancha perla autorizada. El documento ya es el contrato; el código está en deuda.
+
+**Medición al abrir (2026-11-20), `src/ui` + `src/App.tsx`:** 115 clases de color con nombre (`neutral-*`, `red-*`), 62 tamaños arbitrarios `text-[Npx]`, 7 `outline-none` sin reemplazo, 8 alfas `black/30` o `/40` fuera de la lista de §2.2, 10 `text-pearl` fuera de `primitives.tsx`, y **cero** ocurrencias de `text-ink`, `bg-surface`, `data-surface` o `<Zone>`. `src/index.css` sólo declara `--color-pearl`.
+
+**Lo que ya cumple:** geometría (radio cero, retícula, divisores *inset*), techo del 65% y sidebar de `17rem` (`NeighborhoodPanel`), y el grueso de la tipografía mono. La migración **no reescribe el layout**: sustituye clases por roles.
+
+**Alcance:**
+1. `src/index.css`: capa de tokens de §2.4 (`@theme` + `@theme inline`, `--c-*` por contexto, `meter-fill`).
+2. `primitives.tsx`: `Zone`, `PanelTitle`, `SectionLabel`, `Rule`, `StatCell`, `Meter`, `Badge`, `ErrorNote`, `BUTTON_PRIMARY` / `BUTTON_OUTLINE` / `BUTTON_CTA`, según §5.
+3. Sustitución archivo por archivo de `neutral-*`, `red-*`, `black/N`, `text-[Npx]` y `outline-none` por los roles de §2.2 y los tokens de §3 y §5.
+4. `data-surface="light"` **sólo** en `<Zone>`; `dark` en cintas, filas seleccionadas, popovers, toasts y overlays. `Tab` y los atajos no se tocan: DEC-015/DEC-022.
+5. Foco visible (§4.1) en todo interactivo: los 7 `outline-none` actuales se reemplazan por `focus-visible:outline-2`.
+
+**Orden sugerido (cada paso deja el árbol compilando):** tokens → primitives → navbar → sidebar → inspector → Drawer → paleta de comandos → toasts → overlays.
+
+**Regla de cierre:** §11 de `UI_DESIGN.md` sobre el árbol completo, con los 10 puntos en vacío y #10 en **3 zonas permanentes + 1 transitoria**. Ese es el gate que convierte el trinquete de §0.3 en ley.
+
+**Fuera de alcance:** no cambia comportamiento, no toca `src/core`, no introduce el lienzo isométrico (Hito 1.2) y no rediseña zonas. Si un panel necesita otra forma, es una US aparte.
+
 ### UI-01: Formalizar el sistema de diseño "Odyssey OS"
 
 **Motivo:** las directrices estéticas viven hoy sólo en la conversación. Sin documento vinculante, la próxima sesión —o el próximo agente— vuelve a `rounded-lg` e `indigo-600` por inercia.
 
 **Pendiente:** crear `UI_DESIGN.md` con geometría (radio cero, retícula ortogonal, cajas modulares), paleta (neutrales + `red-600` como único acento), tipografía (mono para datos y badges, black para títulos) y patrones de interacción (sin sombras difusas; sólo cambio de color de borde en hover, transiciones secas). Registrarlo en la tabla de precedencia de `GOVERNANCE.md` §1 y en el mapa de documentos de `AGENTS.md` §1.
 
-**Estado: CERRADA.** `UI_DESIGN.md` existe (**v2.2**), registrado como séptimo documento normativo en `GOVERNANCE.md` §1 y `DEC-015`, y en el mapa de `AGENTS.md` §1. Incluye §0.2 con las divergencias resueltas contra `DOMAIN_DESIGN.md` §7 (radio cero vs. "píldoras", ventanas adosadas vs. "paneles flotantes", `Ctrl+B`/`[` vs. `Tab`), §2 con la **metáfora de ventana zonificada** (lienzo negro, tres zonas perla `#ececec`, cinta negra por zona, opciones seleccionadas invertidas, divisores *inset* que no cortan el bloque), §6 con el presupuesto del acento (cinco puestos) y §7 con las nueve auditorías de `grep` que se corren antes de cerrar cualquier cambio en `src/ui/`.
+**Estado: CERRADA.** `UI_DESIGN.md` existe (**v2.2** al cierre; hoy **v2.3**, ver `GOVERNANCE.md` DEC-022 y `MIG-02`), registrado como séptimo documento normativo en `GOVERNANCE.md` §1 y `DEC-015`, y en el mapa de `AGENTS.md` §1. Incluye §0.2 con las divergencias resueltas contra `DOMAIN_DESIGN.md` §7 (radio cero vs. "píldoras", ventanas adosadas vs. "paneles flotantes", `Ctrl+B`/`[` vs. `Tab`), §2 con la **metáfora de ventana zonificada** (lienzo negro, tres zonas perla `#ececec`, cinta negra por zona, opciones seleccionadas invertidas, divisores *inset* que no cortan el bloque), §6 con el presupuesto del acento (cinco puestos) y §11 con las diez auditorías de `grep` que se corren antes de cerrar cualquier cambio en `src/ui/`.
 
 ### UX-01: Las tareas viven sólo en la Pizarra Diaria (decisión, no bug)
 
