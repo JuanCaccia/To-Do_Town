@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { POMODORO_SHORT_BREAK_DIVISOR } from '../../core/constants/economyConstants';
 import { useGameStore } from '../../state/useGameStore';
-import { BUTTON_OUTLINE_ON_DARK, BUTTON_PRIMARY_ON_DARK, INPUT_ON_DARK } from './primitives';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY, INPUT } from './primitives';
 
 interface PomodoroPresetFormProps {
   onCreated(presetId: string): void;
@@ -83,7 +83,7 @@ export function PomodoroPresetForm({ onCreated, onCancel }: PomodoroPresetFormPr
       }}
     >
       <input
-        className={`${INPUT_ON_DARK} w-28`}
+        className={`${INPUT} w-28`}
         value={name}
         onChange={(event) => setName(event.target.value)}
         placeholder="NOMBRE"
@@ -91,7 +91,7 @@ export function PomodoroPresetForm({ onCreated, onCancel }: PomodoroPresetFormPr
         autoFocus
       />
       <input
-        className={`${INPUT_ON_DARK} w-16`}
+        className={`${INPUT} w-16`}
         type="number"
         min={1}
         step={1}
@@ -102,7 +102,7 @@ export function PomodoroPresetForm({ onCreated, onCancel }: PomodoroPresetFormPr
         aria-label="Minutos de trabajo"
       />
       <input
-        className={`${INPUT_ON_DARK} w-16`}
+        className={`${INPUT} w-16`}
         type="number"
         min={0}
         step={1}
@@ -116,7 +116,7 @@ export function PomodoroPresetForm({ onCreated, onCancel }: PomodoroPresetFormPr
         aria-label="Minutos de descanso corto"
       />
       <input
-        className={`${INPUT_ON_DARK} w-16`}
+        className={`${INPUT} w-16`}
         type="number"
         min={0}
         step={1}
@@ -126,10 +126,10 @@ export function PomodoroPresetForm({ onCreated, onCancel }: PomodoroPresetFormPr
         placeholder="LARGO"
         aria-label="Minutos de descanso largo (opcional)"
       />
-      <button type="submit" className={BUTTON_PRIMARY_ON_DARK} disabled={canSubmit === false}>
+      <button type="submit" className={BUTTON_PRIMARY} disabled={canSubmit === false}>
         Crear
       </button>
-      <button type="button" className={BUTTON_OUTLINE_ON_DARK} onClick={onCancel}>
+      <button type="button" className={BUTTON_OUTLINE} onClick={onCancel}>
         Cancelar
       </button>
     </form>

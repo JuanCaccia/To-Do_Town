@@ -3,7 +3,14 @@ import type { HabitCheckInRejection } from '../../core/rules/habitCheckIn';
 import type { EntityId, GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { formatHabitFrequency, isCompletedOnCurrentOperationalDay } from './habitPresentation';
-import { BADGE_ON_LIGHT, BUTTON_PRIMARY_ON_LIGHT, NOTICE_ON_LIGHT, SectionLabel } from './primitives';
+import {
+  BUTTON_PRIMARY,
+  Chip,
+  ErrorNote,
+  Marker,
+  NOTICE,
+  SectionLabel,
+} from './primitives';
 
 const CHECK_IN_REJECTION_TEXT = {
   HABIT_NOT_FOUND: 'El hábito ya no existe.',
@@ -12,7 +19,8 @@ const CHECK_IN_REJECTION_TEXT = {
   ALREADY_COMPLETED_TODAY: 'El hábito ya se cumplió hoy.',
 } as const satisfies Record<HabitCheckInRejection, string>;
 
-const ROW = 'relative px-4 py-3 after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-black/15 last:after:hidden';
+const ROW =
+  'relative px-4 py-3 after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-line last:after:hidden';
 
 /**
  * Daily check-in of the active habits, inside the Drawer's "En Obra (Hoy)"
@@ -45,12 +53,12 @@ export function HabitCheckInList({ state }: { state: GameState }) {
       <div className="px-4 pt-4">
         <SectionLabel>Hábitos de Hoy</SectionLabel>
         {isManuallyPaused && (
-          <p className={`mt-2 ${NOTICE_ON_LIGHT}`}>
+          <p className={`mt-2 ${NOTICE}`}>
             Ciudad en pausa. Reanudala para completar hábitos.
           </p>
         )}
         {isHibernated && (
-          <p className={`mt-2 ${NOTICE_ON_LIGHT}`}>
+          <p className={`mt-2 ${NOTICE}`}>
             Ciudad hibernada. Cumplí un hábito para reactivar el barrio.
           </p>
         )}
@@ -58,9 +66,7 @@ export function HabitCheckInList({ state }: { state: GameState }) {
 
       <ul>
         {habits.length === 0 && (
-          <li className="px-4 py-4 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-            Sin hábitos activos.
-          </li>
+          <li className="px-4 py-4 text-label text-ink-muted">Sin hábitos activos.</li>
         )}
 
         {habits.map(([habitId, habit]) => {
@@ -70,18 +76,19 @@ export function HabitCheckInList({ state }: { state: GameState }) {
           return (
             <li key={habitId} className={ROW}>
               <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-bold text-black">{habit.title}</span>
+                <span className="flex items-center gap-2 text-base text-ink">
+                  <Marker tone={isDoneToday ? 'ink' : 'muted'} hollow={isDoneToday === false} />
+                  {habit.title}
+                </span>
                 <span className="flex items-start gap-1">
-                  {habit.status === 'PAUSED' && (
-                    <span className={BADGE_ON_LIGHT}>En Pausa</span>
-                  )}
-                  <span className={BADGE_ON_LIGHT}>NV.{habit.checkpointLevel}</span>
+                  {habit.status === 'PAUSED' && <span className={Chip}>En Pausa</span>}
+                  <span className={Chip}>NV.{habit.checkpointLevel}</span>
                 </span>
               </div>
 
-              <div className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+              <div className="mt-1.5 text-label uppercase tracking-widest text-ink-muted">
                 {neighborhood?.name ?? 'Barrio eliminado'} · {formatHabitFrequency(habit.frequency)}{' '}
-                · Racha <span className="text-black">{habit.currentStreakDays}</span> d
+                · Racha <span className="text-ink tabular-nums">{habit.currentStreakDays}</span> d
               </div>
 
               <div className="mt-3">
@@ -89,8 +96,9 @@ export function HabitCheckInList({ state }: { state: GameState }) {
                   type="button"
                   disabled={isDoneToday || pendingId !== null || isManuallyPaused}
                   onClick={() => void handleCheckIn(habitId)}
-                  className={`${BUTTON_PRIMARY_ON_LIGHT} px-3 py-1.5`}
+                  className={BUTTON_PRIMARY}
                 >
+                  <Marker tone={isDoneToday ? 'ink' : 'accent'} />
                   {isDoneToday ? 'Cumplido Hoy' : 'Cumplir Hoy'}
                 </button>
               </div>
@@ -99,14 +107,7 @@ export function HabitCheckInList({ state }: { state: GameState }) {
         })}
       </ul>
 
-      {message !== null && (
-        <p
-          className="mx-4 mt-3 mb-4 border border-red-800 bg-red-600/10 px-3 py-2 font-mono text-xs text-red-900"
-          role="alert"
-        >
-          {message}
-        </p>
-      )}
+      {message !== null && <ErrorNote className="mx-4 mb-4 mt-3">{message}</ErrorNote>}
     </div>
   );
 }

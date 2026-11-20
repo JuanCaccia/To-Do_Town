@@ -3,7 +3,7 @@ import type { HabitRelocationRejection } from '../../core/rules/habitRelocation'
 import type { EntityId, GameState, HabitBuilding } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { Combo } from './Combo';
-import { BUTTON_OUTLINE_ON_LIGHT, BUTTON_PRIMARY_ON_LIGHT } from './primitives';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY, ErrorNote } from './primitives';
 
 const RELOCATION_REJECTION_TEXT = {
   HABIT_NOT_FOUND: 'El hábito ya no existe.',
@@ -25,8 +25,8 @@ interface HabitMoveFlowProps {
  * Two-step relocation: pick a target barrio, then confirm it explicitly.
  *
  * The confirmation stays inline inside the inspector instead of opening a
- * floating dialog: `UI_DESIGN.md` freezes the HUD at exactly three pearl zones,
- * so a fourth pearl surface is not available for a modal window.
+ * floating dialog: `UI_DESIGN.md` keeps pearl zones to the permanent three, so
+ * a fourth pearl surface is not available for a modal window.
  */
 export function HabitMoveFlow({ state, habitId, habit, onDone }: HabitMoveFlowProps) {
   const moveHabit = useGameStore((store) => store.moveHabit);
@@ -58,14 +58,12 @@ export function HabitMoveFlow({ state, habitId, habit, onDone }: HabitMoveFlowPr
   }
 
   return (
-    <div className="mt-3 rounded-none border border-black/15 p-4">
-      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-black">
-        Mudar «{habit.title}»
-      </p>
+    <div className="mt-3 rounded-none border border-line p-4">
+      <p className="text-base text-ink">Mudar «{habit.title}»</p>
 
       {confirming ? (
         <>
-          <p className="mt-3 text-sm text-black">
+          <p className="mt-3 text-sm text-ink-muted">
             «{habit.title}» pasa de {originName} a {targetName} y conserva su racha y su nivel.
           </p>
 
@@ -74,7 +72,7 @@ export function HabitMoveFlow({ state, habitId, habit, onDone }: HabitMoveFlowPr
               type="button"
               disabled={pending}
               onClick={() => void handleConfirm()}
-              className={`${BUTTON_PRIMARY_ON_LIGHT} px-3 py-1.5`}
+              className={BUTTON_PRIMARY}
             >
               Confirmar Mudanza
             </button>
@@ -82,7 +80,7 @@ export function HabitMoveFlow({ state, habitId, habit, onDone }: HabitMoveFlowPr
               type="button"
               disabled={pending}
               onClick={() => setConfirming(false)}
-              className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
+              className={BUTTON_OUTLINE}
             >
               Volver
             </button>
@@ -92,7 +90,7 @@ export function HabitMoveFlow({ state, habitId, habit, onDone }: HabitMoveFlowPr
         <>
           <label
             htmlFor={`habit-move-target-${habitId}`}
-            className="mt-3 block font-mono text-[10px] uppercase tracking-widest text-neutral-600"
+            className="mt-3 block text-label uppercase tracking-widest text-ink-muted"
           >
             Barrio destino
           </label>
@@ -116,35 +114,22 @@ export function HabitMoveFlow({ state, habitId, habit, onDone }: HabitMoveFlowPr
               type="button"
               disabled={targetId === ''}
               onClick={() => setConfirming(true)}
-              className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
+              className={BUTTON_OUTLINE}
             >
               Continuar
             </button>
-            <button
-              type="button"
-              onClick={onDone}
-              className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
-            >
+            <button type="button" onClick={onDone} className={BUTTON_OUTLINE}>
               Cancelar
             </button>
           </div>
 
           {targets.length === 0 && (
-            <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-              No hay otro barrio disponible.
-            </p>
+            <p className="mt-3 text-sm text-ink-muted">No hay otro barrio disponible.</p>
           )}
         </>
       )}
 
-      {message !== null && (
-        <p
-          className="mt-3 border border-red-800 bg-red-600/10 px-3 py-2 font-mono text-xs text-red-900"
-          role="alert"
-        >
-          {message}
-        </p>
-      )}
+      {message !== null && <ErrorNote className="mt-3">{message}</ErrorNote>}
     </div>
   );
 }

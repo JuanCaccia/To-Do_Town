@@ -5,11 +5,7 @@ import { BackupControls } from './BackupControls';
 import { CityPauseControl } from './CityPauseControl';
 import { HabitLevelSeedPanel } from './HabitLevelSeedPanel';
 import { TreasurySeedPanel } from './TreasurySeedPanel';
-import {
-  BUTTON_OUTLINE_ON_DARK,
-  MENU_ITEM_ON_DARK,
-  TOAST_ON_DARK,
-} from './primitives';
+import { BUTTON_OUTLINE, MENU_ITEM, TOAST } from './primitives';
 
 /** US-09 CA-01: los avisos del chrome son efímeros, no líneas fijas. */
 const NOTICE_VISIBLE_MS = 4_000;
@@ -95,7 +91,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
       {isMenuVisible && (
         <button
           type="button"
-          className={BUTTON_OUTLINE_ON_DARK}
+          className={BUTTON_OUTLINE}
           aria-haspopup="menu"
           aria-expanded={panel === 'menu'}
           aria-label={panel === 'menu' ? 'Cerrar el menú de acciones' : 'Abrir el menú de acciones'}
@@ -108,12 +104,12 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
       {panel === 'menu' && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-50 mt-1 flex w-56 flex-col border border-neutral-700 bg-black"
+          className="absolute right-0 top-full z-40 mt-1 flex w-56 flex-col rounded-none border border-ink-muted bg-surface text-ink"
         >
           <button
             type="button"
             role="menuitem"
-            className={MENU_ITEM_ON_DARK}
+            className={MENU_ITEM}
             onClick={() => setPanel('backup')}
           >
             Respaldo
@@ -125,7 +121,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
               <button
                 type="button"
                 role="menuitem"
-                className={MENU_ITEM_ON_DARK}
+                className={MENU_ITEM}
                 onClick={() => setPanel('seed-treasury')}
               >
                 Sembrar CR
@@ -134,7 +130,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
               <button
                 type="button"
                 role="menuitem"
-                className={MENU_ITEM_ON_DARK}
+                className={MENU_ITEM}
                 onClick={() => setPanel('seed-level')}
               >
                 Sembrar Nivel
@@ -146,7 +142,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
             <button
               type="button"
               role="menuitem"
-              className={MENU_ITEM_ON_DARK}
+              className={MENU_ITEM}
               onClick={() => setPanel('pause')}
             >
               Pausar Ciudad
@@ -155,7 +151,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
             <button
               type="button"
               role="menuitem"
-              className={MENU_ITEM_ON_DARK}
+              className={MENU_ITEM}
               onClick={() => void resumeCity().then(() => handleDone('Ciudad reanudada'))}
             >
               Reanudar Ciudad
@@ -174,7 +170,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
       )}
 
       {notice !== null && (
-        <div role="status" className={TOAST_ON_DARK}>
+        <div role="status" className={`fixed right-4 top-16 z-60 ${TOAST}`}>
           {notice.text}
         </div>
       )}

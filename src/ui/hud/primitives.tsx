@@ -1,59 +1,105 @@
 import type { ReactNode } from 'react';
 
+/**
+ * Odyssey OS primitives (UI_DESIGN.md §5).
+ *
+ * Components never name a colour: they name a role and the surface context —
+ * `dark` on the canvas, `light` inside a pearl zone — resolves it. Every class
+ * string in this file is a canonical token; no component redefines one.
+ */
+
+/** Focus ring shared by every interactive control (§4.1). */
+export const FOCUS =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
+
+interface ZoneProps {
+  children: ReactNode;
+  className?: string;
+  id?: string;
+  /** Semantic element the zone is drawn on. */
+  as?: 'section' | 'aside' | 'div';
+}
+
+/**
+ * The only recurring pearl block on the black canvas (§2). It owns the bevel —
+ * the one exception to "no relief": a 2px light top edge and a 6px dark bottom
+ * edge, both flat lines, never a shadow.
+ */
+export function Zone({ as: Tag = 'section', className = '', id, children }: ZoneProps) {
+  return (
+    <Tag
+      id={id}
+      data-surface="light"
+      className={`rounded-none border-t-2 border-t-edge-hi border-b-6 border-b-edge-lo bg-surface text-ink ${className}`}
+    >
+      {children}
+    </Tag>
+  );
+}
+
 interface PanelTitleProps {
   children: ReactNode;
   /** Right-aligned slot for a badge, a counter or a control. */
   meta?: ReactNode;
-  /** Window heading of a whole zone. `emphasis` bumps it one step in size. */
-  emphasis?: boolean;
 }
 
 /**
- * The black ribbon that crowns a zone. A zone is one pearl block on the black
- * canvas, and this ribbon is the only chrome it owns: the sections inside the
- * zone never get a second one, or the block would read as a stack of stripes.
+ * The black ribbon that crowns a zone. It is the window's chrome and appears
+ * once per zone: sections inside never get a second ribbon (§2.1).
  */
-export function PanelTitle({ children, meta, emphasis = false }: PanelTitleProps) {
+export function PanelTitle({ children, meta }: PanelTitleProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 bg-black px-4 py-2.5">
-      <h2
-        className={
-          emphasis
-            ? 'flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-wider text-pearl'
-            : 'flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl'
-        }
-      >
-        {children}
-      </h2>
+    <div
+      data-surface="dark"
+      className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 text-ink"
+    >
+      <h2 className="flex items-center gap-3 text-sm text-ink">{children}</h2>
       {meta !== undefined && <div className="flex items-center gap-2">{meta}</div>}
     </div>
   );
 }
 
-interface SectionLabelProps {
-  children: string;
+type MarkerTone = 'ink' | 'muted' | 'accent';
+
+interface MarkerProps {
+  tone?: MarkerTone;
+  /** Pending state: a hollow square that only keeps its outline. */
+  hollow?: boolean;
+  className?: string;
 }
 
 /**
- * Heading of a section *inside* a zone. It carries no background: a second
- * black ribbon would chop the pearl block, which is exactly the striped look
- * the zoning rule forbids.
+ * The square marker (§8.1). It is a CSS element, never a glyph or an emoji, so
+ * state never travels through a character the font can render differently.
  */
-export function SectionLabel({ children }: SectionLabelProps) {
+export function Marker({ tone = 'ink', hollow = false, className = '' }: MarkerProps) {
+  if (hollow) {
+    return (
+      <span
+        aria-hidden
+        className={`inline-block h-2 w-2 shrink-0 rounded-none border border-ink-muted ${className}`}
+      />
+    );
+  }
+
+  const toneClass = tone === 'accent' ? 'bg-accent' : tone === 'muted' ? 'bg-ink-muted' : 'bg-ink';
+
   return (
-    <h3 className="font-mono text-[10px] font-bold uppercase tracking-widest text-black">
-      {children}
-    </h3>
+    <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-none ${toneClass} ${className}`} />
   );
 }
 
+/** Micro-label of a column or a section (§3). */
+export function SectionLabel({ children }: { children: string }) {
+  return <h3 className="text-label uppercase tracking-widest text-ink-muted">{children}</h3>;
+}
+
 /**
- * Inset hairline between two sections of the same pearl block. It never
- * reaches the block's edge: an edge-to-edge line would cut the block in two
- * and the zone would stop reading as one surface.
+ * Inset hairline between two sections of the same block. It never reaches the
+ * zone's edge: an edge-to-edge line would cut the pearl block in two (§2.3).
  */
 export function Rule({ className = 'mx-5' }: { className?: string }) {
-  return <div aria-hidden className={`h-0.5 bg-black/15 ${className}`} />;
+  return <div aria-hidden className={`h-px bg-line ${className}`} />;
 }
 
 interface StatCellProps {
@@ -69,134 +115,131 @@ interface StatCellProps {
 export function StatCell({ label, value, detail }: StatCellProps) {
   return (
     <div className="rounded-none">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-neutral-600">{label}</div>
-      <div className="mt-1 font-mono text-2xl font-bold leading-none text-black">{value}</div>
+      <div className="text-label uppercase tracking-widest text-ink-muted">{label}</div>
+      <div className="mt-1 text-2xl leading-none text-ink tabular-nums">{value}</div>
       {detail !== undefined && (
-        <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-          {detail}
-        </div>
+        <div className="mt-1 text-label uppercase tracking-widest text-ink-muted">{detail}</div>
       )}
     </div>
   );
 }
 
 interface MeterProps {
+  /** Percentage in the 0–100 range. */
   value: number;
+  /** Accessible name; the meter is a real progressbar (§9). */
+  label: string;
 }
 
-export function Meter({ value }: MeterProps) {
-  const clamped = Math.min(100, Math.max(0, value));
+export function Meter({ value, label }: MeterProps) {
+  const clamped = Math.min(100, Math.max(0, Math.round(value)));
 
   return (
-    <div className="h-2 w-full border border-black/30 bg-black/10">
-      <div className="h-full bg-black" style={{ width: `${clamped}%` }} />
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuenow={clamped}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      className="h-2 w-full border border-ink"
+    >
+      <div className="h-full bg-ink motion-safe:meter-fill" style={{ width: `${clamped}%` }} />
     </div>
   );
 }
 
-/** Badge for a black surface. */
-export const BADGE =
-  'inline-block rounded-none border border-neutral-600 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-neutral-300';
+/** Uppercase chip: metadata or a state that is not a surface (§3). */
+export const Chip =
+  'inline-block rounded-none border border-ink-muted px-2 py-0.5 text-label uppercase tracking-widest text-ink-muted';
 
-/** Badge for a pearl surface. */
-export const BADGE_ON_LIGHT =
-  'inline-block rounded-none border border-black/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-neutral-600';
+/** Inline notice inside a zone: a 1px block, never a third surface. */
+export const NOTICE =
+  'rounded-none border border-ink-muted px-3 py-2 text-sm text-ink-muted';
 
-/** Inline notice on a pearl surface: 1px block, no third surface. */
-export const NOTICE_ON_LIGHT =
-  'border border-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-black';
+interface ErrorNoteProps {
+  children: ReactNode;
+  className?: string;
+}
 
-/** Primary action on the black canvas (the drawer launcher). */
-export const BUTTON_PRIMARY_ON_DARK =
-  'rounded-none border border-pearl bg-pearl px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-pearl';
+/** Error message: an accent outline, never a filled block (§8). */
+export function ErrorNote({ children, className = '' }: ErrorNoteProps) {
+  return (
+    <p
+      role="alert"
+      className={`rounded-none border border-accent-ink px-3 py-2 text-label uppercase tracking-widest text-accent-ink ${className}`}
+    >
+      ERR · {children}
+    </p>
+  );
+}
 
-/**
- * Secondary action on the black chrome. Its first consumer is the top-bar
- * hydration pair, which is why it exists now and not before.
- */
-export const BUTTON_OUTLINE_ON_DARK =
-  'rounded-none border border-pearl px-4 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-600 disabled:text-neutral-500 disabled:hover:bg-transparent disabled:hover:text-neutral-500';
+/** Primary action of a zone: a filled block carrying a leading square. */
+export const BUTTON_PRIMARY =
+  'inline-flex items-center gap-3 rounded-none border border-fill bg-fill px-5 py-2.5 text-sm text-on-fill transition-colors hover:underline hover:underline-offset-4 pointer-coarse:min-h-11 disabled:cursor-not-allowed disabled:border-dashed disabled:border-ink-muted disabled:bg-transparent disabled:text-ink-muted disabled:no-underline';
 
-/**
- * Descarte de una notificación sobre el chrome negro. Su primer consumidor es
- * la cruz del UndoToast, que renuncia a la oportunidad de revertir.
- */
-export const BUTTON_DISMISS_ON_DARK =
-  'rounded-none border border-neutral-800 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-400 transition-colors hover:border-pearl hover:text-pearl';
+/** Secondary or navigation action: an outline that inverts on hover. */
+export const BUTTON_OUTLINE =
+  'inline-flex items-center gap-3 rounded-none border border-ink px-5 py-2.5 text-sm text-ink transition-colors hover:bg-fill hover:text-on-fill pointer-coarse:min-h-11 disabled:cursor-not-allowed disabled:border-dashed disabled:border-ink-muted disabled:text-ink-muted disabled:hover:bg-transparent disabled:hover:text-ink-muted';
 
-/** Caja cerrada del combo sobre el chrome negro (la lista la dibuja `Combo`). */
-export const SELECT_ON_DARK =
-  'rounded-none border border-neutral-600 bg-black px-2 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors hover:border-pearl focus:border-pearl focus:outline-none';
+/** Compact dismiss control (`×`) on the black chrome. */
+export const BUTTON_DISMISS =
+  'inline-flex items-center justify-center rounded-none border border-line px-2 py-1 text-label uppercase tracking-widest text-ink-muted transition-colors hover:border-ink hover:text-ink pointer-coarse:min-h-11 pointer-coarse:min-w-11';
 
-/** Numeric input on the black chrome. Focus is never removed, only recoloured. */
-export const INPUT_ON_DARK =
-  'rounded-none border border-neutral-400 bg-transparent px-2 py-2 font-mono text-base font-bold leading-none text-pearl placeholder:text-neutral-500 focus:border-pearl focus:outline-none';
+/** Text and numeric input. Focus is never removed, only recoloured (§4.1). */
+export const INPUT =
+  'rounded-none border border-ink-muted bg-transparent px-2.5 py-2 text-base leading-none text-ink placeholder:text-ink-muted focus:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
-/**
- * Item del menú desplegable del chrome. El hover invierte el bloque, como todo
- * control sobre negro: una fila de menú sin respuesta visual no se lee.
- */
-export const MENU_ITEM_ON_DARK =
-  'rounded-none border-b border-neutral-800 px-3 py-2 text-left font-mono text-[10px] font-medium uppercase tracking-widest text-pearl transition-colors last:border-b-0 hover:bg-pearl hover:text-black';
+/** Closed box of a combo. The list itself is drawn by `Combo`. */
+export const SELECT =
+  'rounded-none border border-ink-muted bg-transparent px-2 py-2 text-label uppercase tracking-widest text-ink transition-colors hover:border-ink focus:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
-/** Aviso efímero del chrome, anclado arriba a la derecha (cupo, respaldo, pausa). */
-export const TOAST_ON_DARK =
-  'fixed right-4 top-16 z-50 border border-pearl bg-black px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-pearl';
+/** Item of a popover menu: it inverts on hover, like every dark control. */
+export const MENU_ITEM =
+  'rounded-none border-b border-line px-3 py-2 text-left text-sm text-ink transition-colors last:border-b-0 hover:bg-fill hover:text-on-fill';
 
-/**
- * Option chip on the black chrome. Selection is carried by the inverted block,
- * never by a third grey, and the active one has no hover: a toggle that inverts
- * back under the pointer stops reading as selected.
- */
-export const CHIP_ON_DARK_IDLE =
-  'rounded-none border border-neutral-600 px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-neutral-300 transition-colors hover:border-pearl hover:text-pearl';
+/** Transient chrome notice (§7.4). */
+export const TOAST =
+  'border border-ink-muted bg-surface px-3 py-2 text-label uppercase tracking-widest text-ink';
 
-/** Caja cerrada del combo sobre una superficie perla: borde negro pleno, sin radio. */
-export const SELECT_ON_LIGHT =
-  'rounded-none border border-black bg-transparent px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-black transition-colors hover:border-neutral-600 focus:border-black focus:outline-none';
+/** Cell of a selectable group. The active one inverts to the opposite context. */
+export const CELL =
+  'inline-flex h-11 min-w-11 items-center justify-center rounded-none border border-ink-muted px-3 text-label uppercase tracking-widest text-ink transition-colors hover:border-ink';
+export const CELL_ACTIVE = 'border-ink bg-surface text-ink';
 
-/** Primary action on a pearl surface: a solid black block, the maximum contrast available there. */export const BUTTON_PRIMARY_ON_LIGHT =
-  'rounded-none border border-black bg-black px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-pearl hover:text-black disabled:cursor-not-allowed disabled:border-neutral-400 disabled:bg-neutral-400 disabled:text-neutral-600';
+/** Toggle chip on the black chrome. Selection is carried by inversion. */
+export const CHIP_IDLE =
+  'inline-flex items-center rounded-none border border-ink-muted px-3 py-2 text-label uppercase tracking-widest text-ink-muted transition-colors hover:border-ink hover:text-ink';
 
 /**
  * Option inside a zone's tab strip. The selected one is inverted to the
- * opposite colour; selection is never carried by a third grey.
+ * opposite context; selection is never carried by a third grey (§4.2).
  */
 export const TAB_ITEM =
-  'rounded-none px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors';
-export const TAB_ITEM_ACTIVE = 'bg-black text-pearl';
-export const TAB_ITEM_IDLE = 'text-neutral-600 hover:text-black';
-
-/** Secondary action on a pearl surface. */
-export const BUTTON_OUTLINE_ON_LIGHT =
-  'rounded-none border border-black px-4 py-2 font-mono text-[10px] font-medium uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-pearl disabled:cursor-not-allowed disabled:border-neutral-400 disabled:text-neutral-600 disabled:hover:bg-transparent disabled:hover:text-neutral-600';
+  'rounded-none px-3 py-2 text-label uppercase tracking-widest transition-colors';
+export const TAB_ITEM_ACTIVE = 'bg-surface text-ink';
+export const TAB_ITEM_IDLE = 'text-ink-muted hover:text-ink';
 
 /**
- * Combo desplegable del sistema Odyssey: la caja cerrada es idéntica a un
- * `select` nativo del chrome, pero la lista la dibujamos nosotros para que
- * respete la geometría (radio cero, sin sombras) y para poder abrirla hacia
- * arriba cuando el control vive al pie de un panel.
- *
- * Los colores viven acá y no en el componente para que la auditoría de
- * superficie única (UI_DESIGN §7.8) siga contando exactamente tres `bg-pearl`
- * fuera de este archivo.
+ * Dropdown combo of the Odyssey system: the closed box matches a native select,
+ * but the list is ours so it keeps the geometry (zero radius, no shadow) and can
+ * open upwards when the control sits at the foot of a panel.
  */
 export const COMBO_TRIGGER = 'flex w-full items-center justify-between gap-2';
-export const COMBO_CARET = 'text-[8px] leading-none';
-export const COMBO_LIST =
-  'absolute left-0 z-50 w-full min-w-max border';
-export const COMBO_LIST_DARK = 'border-neutral-600 bg-black';
-export const COMBO_LIST_LIGHT = 'border-black bg-pearl';
+export const COMBO_CARET = 'text-label leading-none';
+export const COMBO_LIST = 'absolute left-0 z-40 w-full min-w-max border border-ink-muted';
+export const COMBO_LIST_DARK = 'bg-surface';
+export const COMBO_LIST_LIGHT = 'bg-surface';
 export const COMBO_OPTION =
-  'block w-full px-3 py-2 text-left font-mono text-[10px] uppercase tracking-widest transition-colors';
-export const COMBO_OPTION_DARK_ACTIVE = 'bg-pearl text-black';
-export const COMBO_OPTION_DARK_IDLE = 'text-pearl hover:bg-pearl hover:text-black';
-export const COMBO_OPTION_LIGHT_ACTIVE = 'bg-black text-pearl';
-export const COMBO_OPTION_LIGHT_IDLE = 'text-black hover:bg-black hover:text-pearl';
+  'block w-full px-3 py-2 text-left text-sm transition-colors';
+export const COMBO_OPTION_DARK_ACTIVE = 'bg-surface text-ink';
+export const COMBO_OPTION_DARK_IDLE = 'text-ink-muted hover:bg-fill hover:text-on-fill';
+export const COMBO_OPTION_LIGHT_ACTIVE = 'bg-surface text-ink';
+export const COMBO_OPTION_LIGHT_IDLE = 'text-ink hover:bg-black/5';
+
 /**
- * El combo inhabilitado se lee igual que un input inhabilitado del mismo panel.
- * Es una clase completa, no un añadido sobre `SELECT_ON_LIGHT`: apilar dos
- * bordes de Tailwind deja el resultado en manos del orden del CSS.
+ * The disabled combo reads like a disabled input of the same panel. It is a
+ * complete class, not an addition over `SELECT`: stacking two Tailwind borders
+ * leaves the result to CSS order.
  */
-export const COMBO_TRIGGER_DISABLED_ON_LIGHT =
-  'rounded-none border border-neutral-300 bg-transparent px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-neutral-500 cursor-not-allowed';
+export const COMBO_TRIGGER_DISABLED =
+  'rounded-none border border-dashed border-ink-muted bg-transparent px-2 py-2 text-label uppercase tracking-widest text-ink-muted cursor-not-allowed';

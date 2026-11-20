@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { Combo } from './Combo';
-import { BUTTON_DISMISS_ON_DARK, BUTTON_OUTLINE_ON_DARK, INPUT_ON_DARK } from './primitives';
+import { BUTTON_DISMISS, BUTTON_OUTLINE, INPUT } from './primitives';
 
 interface HabitLevelSeedPanelProps {
   state: GameState;
@@ -55,7 +55,7 @@ export function HabitLevelSeedPanel({ state, onDone, onCancel }: HabitLevelSeedP
         className="max-w-[9rem]"
       />
       <input
-        className={`${INPUT_ON_DARK} w-24`}
+        className={`${INPUT} w-24`}
         type="number"
         min={1}
         max={5}
@@ -67,12 +67,12 @@ export function HabitLevelSeedPanel({ state, onDone, onCancel }: HabitLevelSeedP
         value={level}
         onChange={(event) => setLevel(event.target.value)}
       />
-      <button type="submit" className={BUTTON_OUTLINE_ON_DARK} disabled={isLevelValid === false}>
+      <button type="submit" className={BUTTON_OUTLINE} disabled={isLevelValid === false}>
         Sembrar
       </button>
       <button
         type="button"
-        className={BUTTON_DISMISS_ON_DARK}
+        className={BUTTON_DISMISS}
         onClick={onCancel}
         aria-label="Cancelar la siembra de nivel"
       >

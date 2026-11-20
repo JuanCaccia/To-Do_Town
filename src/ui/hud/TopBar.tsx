@@ -5,7 +5,14 @@ import { useGameStore } from '../../state/useGameStore';
 import { WATER_DAILY_HARD_CAP_LITERS } from '../../core/constants/economyConstants';
 import { FocusTimer } from './FocusTimer';
 import { NavActionsMenu } from './NavActionsMenu';
-import { BADGE, BUTTON_DISMISS_ON_DARK, BUTTON_OUTLINE_ON_DARK, INPUT_ON_DARK, TOAST_ON_DARK } from './primitives';
+import {
+  BUTTON_DISMISS,
+  BUTTON_OUTLINE,
+  Chip,
+  INPUT,
+  Marker,
+  TOAST,
+} from './primitives';
 
 /** US-09 CA-01: el aviso de cupo es efímero, no una línea fija del chrome. */
 const TOAST_VISIBLE_MS = 4_000;
@@ -30,15 +37,15 @@ function Stat({
   controls?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 border-r border-neutral-800 px-4 py-2.5">
+    <div className="flex items-center gap-3 border-r border-line px-4 py-2.5">
       <div className="flex flex-col justify-center">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
+        <span className="text-label uppercase tracking-widest text-ink-muted">
           {label}
         </span>
-        <span className="mt-0.5 font-mono text-base font-bold leading-none text-pearl">
+        <span className="mt-0.5 text-base leading-none text-ink tabular-nums">
           {value}
           {detail !== undefined && (
-            <span className="ml-1.5 text-[10px] font-normal uppercase tracking-widest text-neutral-400">
+            <span className="ml-1.5 text-label uppercase tracking-widest text-ink-muted">
               {detail}
             </span>
           )}
@@ -103,15 +110,15 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
     <header
       className={
         isZen
-          ? 'flex items-center justify-between border-b border-neutral-800 bg-black'
-          : 'flex flex-wrap items-stretch border-b border-neutral-800 bg-black'
+          ? 'flex items-center justify-between border-b border-line bg-surface'
+          : 'flex flex-wrap items-stretch border-b border-line bg-surface'
       }
     >
       {isZen === false && (
         <>
-          <div className="flex items-center gap-2 border-r border-neutral-800 px-4 py-2">
-            <span className="h-2 w-2 bg-red-600" aria-hidden />
-            <span className="text-sm font-black uppercase tracking-tight text-pearl">To-Do Town</span>
+          <div className="flex items-center gap-2 border-r border-line px-4 py-2">
+            <Marker tone="accent" />
+            <span className="text-sm text-ink">To-Do Town</span>
           </div>
 
           <Stat
@@ -127,19 +134,19 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  className={BUTTON_OUTLINE_ON_DARK}
+                  className={BUTTON_OUTLINE}
                   onClick={() => void registerWater(0.5)}
                   aria-label="Registrar medio litro de agua"
                 >
-                  +500 ML
+                  +500 ml
                 </button>
                 <button
                   type="button"
-                  className={BUTTON_OUTLINE_ON_DARK}
+                  className={BUTTON_OUTLINE}
                   onClick={() => void registerWater(1)}
                   aria-label="Registrar un litro de agua"
                 >
-                  +1 L
+                  +1 l
                 </button>
               </div>
             }
@@ -153,7 +160,7 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
               isReading ? (
                 <form className="flex items-center gap-1.5" onSubmit={(event) => void submitPages(event)}>
                   <input
-                    className={`${INPUT_ON_DARK} w-20`}
+                    className={`${INPUT} w-20`}
                     type="number"
                     min={1}
                     step={1}
@@ -166,7 +173,7 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
                   />
                   <button
                     type="submit"
-                    className={BUTTON_OUTLINE_ON_DARK}
+                    className={BUTTON_OUTLINE}
                     disabled={isPageCountValid === false}
                   >
                     Sumar
@@ -175,10 +182,10 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
               ) : (
                 <button
                   type="button"
-                  className={BUTTON_OUTLINE_ON_DARK}
+                  className={BUTTON_OUTLINE}
                   onClick={() => setIsReading(true)}
                 >
-                  +Págs
+                  Sumar págs
                 </button>
               )
             }
@@ -194,11 +201,11 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
         className={
           isZen
             ? 'flex items-center px-4 py-1.5'
-            : 'flex items-center gap-3 border-r border-neutral-800 px-4 py-2.5'
+            : 'flex items-center gap-3 border-r border-line px-4 py-2.5'
         }
       >
         {isZen === false && (
-          <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
+          <span className="text-label uppercase tracking-widest text-ink-muted">
             Pomodoro
           </span>
         )}
@@ -209,16 +216,19 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
         <>
           <div className="ml-auto flex flex-wrap items-center gap-2 px-4 py-2">
             <span
-              className={`${BADGE} ${
-                isActive ? 'border-red-800 bg-red-950/40 text-red-400' : 'text-neutral-400'
-              }`}
+              className={
+                isActive
+                  ? 'inline-block rounded-none border border-accent-ink px-2 py-0.5 text-label uppercase tracking-widest text-accent-ink'
+                  : Chip
+              }
             >
+              {isActive === false && <Marker tone="accent" className="mr-1.5" />}
               {state.cityStatus}
             </span>
 
             {state.cityStatus === 'MANUAL_PAUSE' && (
               <span
-                className="max-w-[18rem] truncate font-mono text-[10px] uppercase tracking-widest text-neutral-300"
+                className="max-w-[18rem] truncate text-label text-ink-muted"
                 title={state.manualPauseReason}
               >
                 Pausa: {state.manualPauseReason}
@@ -231,7 +241,7 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
           </div>
 
           {toast !== null && (
-            <div role="status" className={TOAST_ON_DARK}>
+            <div role="status" className={`fixed right-4 top-16 z-60 ${TOAST}`}>
               {toast.message}
             </div>
           )}
@@ -241,7 +251,7 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
       {isZen && (
         <button
           type="button"
-          className={`${BUTTON_DISMISS_ON_DARK} mr-3`}
+          className={`${BUTTON_DISMISS} mr-3`}
           onClick={onExitZen}
           aria-label="Salir del Modo Zen"
         >

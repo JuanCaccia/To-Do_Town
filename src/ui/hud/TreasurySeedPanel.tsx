@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { Combo } from './Combo';
-import { BUTTON_DISMISS_ON_DARK, BUTTON_OUTLINE_ON_DARK, INPUT_ON_DARK } from './primitives';
+import { BUTTON_DISMISS, BUTTON_OUTLINE, INPUT } from './primitives';
 
 interface TreasurySeedPanelProps {
   state: GameState;
@@ -56,7 +56,7 @@ export function TreasurySeedPanel({ state, onDone, onCancel }: TreasurySeedPanel
         className="max-w-[9rem]"
       />
       <input
-        className={`${INPUT_ON_DARK} w-24`}
+        className={`${INPUT} w-24`}
         type="number"
         min={0}
         step={1}
@@ -67,12 +67,12 @@ export function TreasurySeedPanel({ state, onDone, onCancel }: TreasurySeedPanel
         value={coins}
         onChange={(event) => setCoins(event.target.value)}
       />
-      <button type="submit" className={BUTTON_OUTLINE_ON_DARK} disabled={isCoinsValid === false}>
+      <button type="submit" className={BUTTON_OUTLINE} disabled={isCoinsValid === false}>
         Sembrar
       </button>
       <button
         type="button"
-        className={BUTTON_DISMISS_ON_DARK}
+        className={BUTTON_DISMISS}
         onClick={onCancel}
         aria-label="Cancelar la siembra de saldo"
       >

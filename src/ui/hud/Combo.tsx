@@ -10,9 +10,8 @@ import {
   COMBO_OPTION_LIGHT_ACTIVE,
   COMBO_OPTION_LIGHT_IDLE,
   COMBO_TRIGGER,
-  COMBO_TRIGGER_DISABLED_ON_LIGHT,
-  SELECT_ON_DARK,
-  SELECT_ON_LIGHT,
+  COMBO_TRIGGER_DISABLED,
+  SELECT,
 } from './primitives';
 
 export interface ComboOption {
@@ -89,13 +88,7 @@ export function Combo({
 
   const listTone = tone === 'dark' ? COMBO_LIST_DARK : COMBO_LIST_LIGHT;
   const position = direction === 'up' ? 'bottom-full mb-1' : 'top-full mt-1';
-  const triggerTone = disabled
-    ? tone === 'light'
-      ? COMBO_TRIGGER_DISABLED_ON_LIGHT
-      : `${SELECT_ON_DARK} cursor-not-allowed`
-    : tone === 'dark'
-      ? SELECT_ON_DARK
-      : SELECT_ON_LIGHT;
+  const triggerTone = disabled ? COMBO_TRIGGER_DISABLED : SELECT;
 
   return (
     <div ref={wrapperRef} className={`relative min-w-0 ${className}`}>
@@ -144,6 +137,9 @@ export function Combo({
               <li key={option.value} role="option" aria-selected={isSelected}>
                 <button
                   type="button"
+                  data-surface={
+                    isSelected ? (tone === 'dark' ? 'light' : 'dark') : undefined
+                  }
                   className={`${COMBO_OPTION} ${optionTone}`}
                   onClick={() => {
                     onChange(option.value);

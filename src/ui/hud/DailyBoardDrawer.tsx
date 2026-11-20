@@ -7,16 +7,18 @@ import { useGameStore } from '../../state/useGameStore';
 import { Combo } from './Combo';
 import { HabitCheckInList } from './HabitCheckInList';
 import {
-  BADGE_ON_LIGHT,
-  BUTTON_OUTLINE_ON_LIGHT,
-  BUTTON_PRIMARY_ON_DARK,
-  BUTTON_PRIMARY_ON_LIGHT,
-  NOTICE_ON_LIGHT,
+  BUTTON_OUTLINE,
+  BUTTON_PRIMARY,
+  Chip,
+  INPUT,
+  Marker,
+  NOTICE,
   PanelTitle,
   Rule,
   TAB_ITEM,
   TAB_ITEM_ACTIVE,
   TAB_ITEM_IDLE,
+  Zone,
 } from './primitives';
 
 type BoardTab = 'IN_CONSTRUCTION' | 'MASTER_PLAN';
@@ -26,6 +28,16 @@ const TASK_WEIGHTS: TaskWeight[] = ['SIMPLE', 'STANDARD', 'COMPLEX'];
 const TAB_LABELS: Record<BoardTab, string> = {
   IN_CONSTRUCTION: 'En Obra (Hoy)',
   MASTER_PLAN: 'Plano Maestro',
+};
+
+/** UI_DESIGN §8.1: the label and marker of the closed `boardStatus` list. */
+const TASK_STATE: Record<
+  'MASTER_PLAN' | 'IN_CONSTRUCTION' | 'COMPLETED',
+  { label: string; tone: 'ink' | 'muted'; hollow: boolean }
+> = {
+  MASTER_PLAN: { label: 'PLANO MAESTRO', tone: 'muted', hollow: true },
+  IN_CONSTRUCTION: { label: 'EN OBRA', tone: 'muted', hollow: false },
+  COMPLETED: { label: 'HECHA', tone: 'ink', hollow: false },
 };
 
 const FATIGUE_LABELS: Record<number, string> = {
@@ -67,6 +79,12 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
       // The bare "[" shortcut must not fire while the user is typing a title.
       if (event.key === '[' && !isTypingTarget(event.target)) {
         setOpen((value) => !value);
+        return;
+      }
+
+      // §4.4: Esc closes the drawer; the visible control says `Esc · cerrar`.
+      if (event.key === 'Escape') {
+        setOpen((value) => (value ? false : value));
       }
     }
 
@@ -108,9 +126,13 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`fixed bottom-6 right-6 ${BUTTON_PRIMARY_ON_DARK}`}
+        aria-expanded={false}
+        aria-controls="daily-board"
+        className={`fixed bottom-4 right-4 z-20 ${BUTTON_PRIMARY}`}
       >
+        <Marker tone="accent" />
         Pizarra Diaria
+        <span className="text-label uppercase tracking-widest text-on-fill">[</span>
       </button>
     );
   }
@@ -118,58 +140,64 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
   return (
     /* One zone, one pearl block: the drawer shares the pearl surface end to end
        and is split by inset hairlines, not by stacked fills. */
-    <aside className="fixed right-0 top-0 z-20 flex h-full w-full max-w-sm flex-col bg-pearl text-black">
+    <Zone
+      as="aside"
+      id="daily-board"
+      className="fixed right-0 top-0 z-30 flex h-full w-full max-w-sm flex-col"
+    >
       <PanelTitle
         meta={
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="rounded-none border border-neutral-700 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-neutral-300 transition-colors hover:border-pearl hover:text-pearl"
+            className="rounded-none border border-ink-muted px-2 py-1 text-label uppercase tracking-widest text-ink-muted transition-colors hover:border-ink hover:text-ink"
           >
-            Cerrar
+            Esc · cerrar
           </button>
         }
       >
-        <span className="h-2 w-2 bg-red-600" aria-hidden />
+        <Marker tone="accent" />
         <span>Pizarra Diaria</span>
       </PanelTitle>
 
-      {/* The active tab is the option inverted to the opposite colour. */}
-      <nav className="flex gap-1 px-2 pt-2">
-        {(Object.keys(TAB_LABELS) as BoardTab[]).map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setTab(value)}
-            aria-current={tab === value ? 'true' : undefined}
-            className={`flex-1 ${TAB_ITEM} ${tab === value ? TAB_ITEM_ACTIVE : TAB_ITEM_IDLE}`}
-          >
-            {TAB_LABELS[value]}
-          </button>
-        ))}
-      </nav>
+      {/* The active tab is the option inverted to the opposite context. */}
+      <div className="px-2 pt-2">
+        <div role="tablist" aria-label="Pestañas de la pizarra" className="flex gap-1">
+          {(Object.keys(TAB_LABELS) as BoardTab[]).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              data-surface={tab === value ? 'dark' : undefined}
+              onClick={() => setTab(value)}
+              className={`flex-1 ${TAB_ITEM} ${tab === value ? TAB_ITEM_ACTIVE : TAB_ITEM_IDLE}`}
+            >
+              {TAB_LABELS[value]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="pt-2">
         <Rule className="mx-4" />
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div role="tabpanel" className="flex-1 overflow-y-auto">
         {isManuallyPaused && (
-          <p className={`mx-4 mt-3 ${NOTICE_ON_LIGHT}`}>
+          <p className={`mx-4 mt-3 ${NOTICE}`}>
             Ciudad en pausa. Reanudala para completar tareas.
           </p>
         )}
         {isHibernated && (
-          <p className={`mx-4 mt-3 ${NOTICE_ON_LIGHT}`}>
+          <p className={`mx-4 mt-3 ${NOTICE}`}>
             Ciudad hibernada. Completá una tarea para reactivar el barrio.
           </p>
         )}
 
         <ul>
           {tasks.length === 0 && (
-            <li className="px-4 py-6 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-              Sin tareas.
-            </li>
+            <li className="px-4 py-6 text-label text-ink-muted">Sin tareas.</li>
           )}
 
           {tasks.map(([taskId, task]) => {
@@ -183,29 +211,37 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
                     globalTasksCompletedCount,
                     state.globals.aqueduct.dailyLiters,
                   );
+            const stateInfo = TASK_STATE[task.boardStatus];
 
             return (
               <li
                 key={taskId}
-                className="relative px-4 py-3 after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-black/15 last:after:hidden"
+                className="relative px-4 py-3 after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-line last:after:hidden"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-bold text-black">{task.title}</span>
+                  <span className="flex items-center gap-2 text-base text-ink">
+                    <Marker tone={stateInfo.tone} hollow={stateInfo.hollow} />
+                    {task.title}
+                  </span>
                   <span className="flex shrink-0 gap-1">
                     {multiplier < 1 && (
-                      <span className={BADGE_ON_LIGHT}>{FATIGUE_LABELS[multiplier] ?? 'FATIGA'}</span>
+                      <span className={Chip}>{FATIGUE_LABELS[multiplier] ?? 'FATIGA'}</span>
                     )}
-                    <span className={BADGE_ON_LIGHT}>{task.weight}</span>
+                    <span className={Chip}>{task.weight}</span>
                   </span>
                 </div>
 
-                <div className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-                  {neighborhood?.name ?? 'Barrio eliminado'} ·{' '}
-                  <span className="text-black">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-label uppercase tracking-widest text-ink-muted">
+                  <span className="inline-flex items-center gap-1">
+                    <Marker tone={stateInfo.tone} hollow={stateInfo.hollow} />
+                    {stateInfo.label}
+                  </span>
+                  <span>·</span>
+                  <span>{neighborhood?.name ?? 'Barrio eliminado'}</span>
+                  <span className="text-ink tabular-nums">
                     +{formatAmount(reward.coins * multiplier)} CR
-                  </span>{' '}
-                  /{' '}
-                  <span className="text-black">
+                  </span>
+                  <span className="text-ink tabular-nums">
                     +{formatAmount(reward.urbanizationProgress * multiplier)}%
                   </span>
                 </div>
@@ -215,7 +251,7 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
                     <button
                       type="button"
                       onClick={() => void moveTask(taskId, 'IN_CONSTRUCTION')}
-                      className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
+                      className={BUTTON_OUTLINE}
                     >
                       Pasar a En Obra
                     </button>
@@ -225,14 +261,15 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
                         type="button"
                         disabled={isManuallyPaused}
                         onClick={() => void completeTask(taskId)}
-                        className="rounded-none border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-pearl transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:border-neutral-400 disabled:bg-neutral-400 disabled:text-neutral-600 disabled:hover:bg-neutral-400"
+                        className={BUTTON_PRIMARY}
                       >
+                        <Marker tone="accent" />
                         Completar
                       </button>
                       <button
                         type="button"
                         onClick={() => void moveTask(taskId, 'MASTER_PLAN')}
-                        className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
+                        className={BUTTON_OUTLINE}
                       >
                         Devolver
                       </button>
@@ -256,12 +293,15 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
       <Rule className="mx-4" />
 
       <form onSubmit={(event) => void handleCreate(event)} className="space-y-3 p-4">
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Nueva tarea"
-          className="w-full rounded-none border border-black/30 bg-transparent px-2.5 py-2 font-mono text-xs text-black placeholder:text-neutral-500 focus:border-black focus:outline-none"
-        />
+        <label className="block">
+          <span className="sr-only">Nueva tarea</span>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Nueva tarea"
+            className={`${INPUT} w-full`}
+          />
+        </label>
 
         <div className="flex gap-2">
           <Combo
@@ -290,11 +330,11 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
         <button
           type="submit"
           disabled={title.trim().length === 0 || selectedNeighborhoodId === ''}
-          className={`${BUTTON_PRIMARY_ON_LIGHT} w-full`}
+          className={`${BUTTON_PRIMARY} w-full`}
         >
           Guardar en Plano Maestro
         </button>
       </form>
-    </aside>
+    </Zone>
   );
 }

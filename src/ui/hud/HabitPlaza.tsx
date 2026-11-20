@@ -13,10 +13,16 @@ import {
   PRODUCTIVE_LOT_CAPACITY,
 } from './habitPresentation';
 import {
-  BADGE_ON_LIGHT,
-  BUTTON_OUTLINE_ON_LIGHT,
-  BUTTON_PRIMARY_ON_LIGHT,
+  BUTTON_OUTLINE,
+  CELL,
+  CELL_ACTIVE,
+  BUTTON_PRIMARY,
+  Chip,
+  ErrorNote,
+  INPUT,
+  Marker,
   Meter,
+  NOTICE,
   SectionLabel,
 } from './primitives';
 
@@ -35,7 +41,8 @@ type FrequencyMode = 'DAILY' | 'TIMES_PER_WEEK';
 
 const TIMES_PER_WEEK_COUNTS = [1, 2, 3, 4, 5, 6];
 
-const ROW = 'relative px-4 py-3 after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-black/15 last:after:hidden';
+const ROW =
+  'relative px-4 py-3 after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-line last:after:hidden';
 
 interface HabitPlazaProps {
   state: GameState;
@@ -113,24 +120,25 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
         <SectionLabel>Plaza de Infraestructura</SectionLabel>
 
         <div className="mt-3 flex items-end justify-between gap-4">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+          <span className="text-label uppercase tracking-widest text-ink-muted">
             Lotes Productivos
           </span>
-          <span className="font-mono text-4xl font-bold leading-none text-black">
+          <span className="text-4xl leading-none text-ink tabular-nums">
             {occupiedLots}/{PRODUCTIVE_LOT_CAPACITY}
           </span>
         </div>
 
         <div className="mt-3">
-          <Meter value={(occupiedLots / PRODUCTIVE_LOT_CAPACITY) * 100} />
+          <Meter
+            value={(occupiedLots / PRODUCTIVE_LOT_CAPACITY) * 100}
+            label="Ocupación de lotes productivos"
+          />
         </div>
       </div>
 
       <ul>
         {habits.length === 0 && (
-          <li className="px-4 py-4 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-            Plaza vacía. Creá un hábito.
-          </li>
+          <li className="px-4 py-4 text-label text-ink-muted">Plaza vacía. Creá un hábito.</li>
         )}
 
         {habits.map(([habitId, habit]) => {
@@ -140,17 +148,20 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
           return (
             <li key={habitId} className={ROW}>
               <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-bold text-black">{habit.title}</span>
+                <span className="flex items-center gap-2 text-base text-ink">
+                  <Marker tone={isDoneToday ? 'ink' : 'muted'} hollow={isDoneToday === false} />
+                  {habit.title}
+                </span>
                 <span className="flex shrink-0 gap-1">
-                  <span className={BADGE_ON_LIGHT}>NV.{habit.checkpointLevel}</span>
-                  {habit.status === 'PAUSED' && <span className={BADGE_ON_LIGHT}>En Pausa</span>}
-                  {isDoneToday && <span className={BADGE_ON_LIGHT}>Cumplido Hoy</span>}
+                  <span className={Chip}>NV.{habit.checkpointLevel}</span>
+                  {habit.status === 'PAUSED' && <span className={Chip}>En Pausa</span>}
+                  {isDoneToday && <span className={Chip}>Cumplido Hoy</span>}
                 </span>
               </div>
 
-              <div className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+              <div className="mt-1.5 text-label uppercase tracking-widest text-ink-muted">
                 {formatHabitFrequency(habit.frequency)} · Racha{' '}
-                <span className="text-black">{habit.currentStreakDays}</span> d
+                <span className="text-ink tabular-nums">{habit.currentStreakDays}</span> d
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -158,7 +169,7 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
                   type="button"
                   disabled={pending || habit.status !== 'ACTIVE'}
                   onClick={() => setMovingHabitId(habitId)}
-                  className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
+                  className={BUTTON_OUTLINE}
                 >
                   Mudar de Barrio
                 </button>
@@ -166,7 +177,7 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
                   type="button"
                   disabled={pending || !canRetire}
                   onClick={() => void handleRetire(habitId)}
-                  className={`${BUTTON_OUTLINE_ON_LIGHT} px-3 py-1.5`}
+                  className={BUTTON_OUTLINE}
                 >
                   Retirar al Museo
                 </button>
@@ -185,41 +196,41 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
         })}
       </ul>
 
-      <div className="px-5 pt-5 pb-5">
+      <div className="px-5 pb-5 pt-5">
         <SectionLabel>Nuevo Hábito</SectionLabel>
 
         {lotsFull && (
-          <p
-            className="mt-3 border border-red-800 bg-red-600/10 px-3 py-2 font-mono text-xs text-red-900"
-            role="status"
-          >
-            {CREATION_REJECTION_TEXT.PRODUCTIVE_LOTS_FULL}
-          </p>
+          <p className={`mt-3 ${NOTICE}`}>{CREATION_REJECTION_TEXT.PRODUCTIVE_LOTS_FULL}</p>
         )}
 
         <form onSubmit={(event) => void handleCreate(event)} className="mt-3 space-y-3">
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={lotsFull}
-            placeholder="Título del hábito"
-            className="w-full rounded-none border border-black/30 bg-transparent px-2.5 py-2 font-mono text-xs text-black placeholder:text-neutral-500 focus:border-black focus:outline-none disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-500"
-          />
+          <label className="block">
+            <span className="sr-only">Título del hábito</span>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              disabled={lotsFull}
+              placeholder="Título del hábito"
+              className={`${INPUT} w-full`}
+            />
+          </label>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2" role="group" aria-label="Frecuencia del hábito">
             <button
               type="button"
               aria-pressed={mode === 'DAILY'}
+              data-surface={mode === 'DAILY' ? 'dark' : undefined}
               onClick={() => setMode('DAILY')}
-              className={`${mode === 'DAILY' ? BUTTON_PRIMARY_ON_LIGHT : BUTTON_OUTLINE_ON_LIGHT} flex-1 px-3 py-1.5`}
+              className={`${CELL} flex-1 ${mode === 'DAILY' ? CELL_ACTIVE : ''}`}
             >
               Diario
             </button>
             <button
               type="button"
               aria-pressed={mode === 'TIMES_PER_WEEK'}
+              data-surface={mode === 'TIMES_PER_WEEK' ? 'dark' : undefined}
               onClick={() => setMode('TIMES_PER_WEEK')}
-              className={`${mode === 'TIMES_PER_WEEK' ? BUTTON_PRIMARY_ON_LIGHT : BUTTON_OUTLINE_ON_LIGHT} flex-1 px-3 py-1.5`}
+              className={`${CELL} flex-1 ${mode === 'TIMES_PER_WEEK' ? CELL_ACTIVE : ''}`}
             >
               Semanal
             </button>
@@ -229,7 +240,7 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
             <div className="flex items-center gap-2">
               <label
                 htmlFor={`habit-times-per-week-${neighborhoodId}`}
-                className="font-mono text-[10px] uppercase tracking-widest text-neutral-600"
+                className="text-label uppercase tracking-widest text-ink-muted"
               >
                 Veces por Semana
               </label>
@@ -253,20 +264,14 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
           <button
             type="submit"
             disabled={lotsFull || pending || title.trim().length === 0}
-            className={`${BUTTON_PRIMARY_ON_LIGHT} w-full`}
+            className={`${BUTTON_PRIMARY} w-full`}
           >
+            <Marker />
             Crear Hábito
           </button>
         </form>
 
-        {message !== null && (
-          <p
-            className="mt-3 border border-red-800 bg-red-600/10 px-3 py-2 font-mono text-xs text-red-900"
-            role="alert"
-          >
-            {message}
-          </p>
-        )}
+        {message !== null && <ErrorNote className="mt-3">{message}</ErrorNote>}
       </div>
     </div>
   );

@@ -22,20 +22,18 @@ export function HabitMuseum({ state, neighborhoodId }: HabitMuseumProps) {
       <SectionLabel>Museo de Hábitos</SectionLabel>
 
       {retired.length === 0 ? (
-        <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+        <p className="mt-3 text-sm text-ink-muted">
           Sin placas. Los hábitos de Nivel 5 se retiran aquí con honores.
         </p>
       ) : (
         <ul className="mt-3 grid gap-3 sm:grid-cols-2">
           {retired.map(([habitId, habit]) => (
-            <li key={habitId} className="rounded-none border border-black/15 p-4">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-                En Exhibición
-              </p>
-              <p className="mt-1 text-sm font-bold text-black">{habit.title}</p>
-              <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+            <li key={habitId} className="rounded-none border border-line p-4">
+              <p className="text-label uppercase tracking-widest text-ink-muted">En Exhibición</p>
+              <p className="mt-1 text-base text-ink">{habit.title}</p>
+              <p className="mt-2 text-label uppercase tracking-widest text-ink-muted">
                 Retirado el{' '}
-                <span className="text-black">
+                <span className="text-ink">
                   {habit.retiredAt === null ? '—' : formatRetirementDate(habit.retiredAt)}
                 </span>
               </p>

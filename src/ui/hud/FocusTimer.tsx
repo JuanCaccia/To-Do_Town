@@ -6,7 +6,7 @@ import type { GameState, PomodoroPreset } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { PomodoroPresetForm } from './PomodoroPresetForm';
 import { Combo } from './Combo';
-import { BUTTON_OUTLINE_ON_DARK, BUTTON_PRIMARY_ON_DARK, CHIP_ON_DARK_IDLE } from './primitives';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY, CHIP_IDLE } from './primitives';
 
 const MILLISECONDS_PER_MINUTE = 60_000;
 
@@ -279,7 +279,7 @@ export function FocusTimer({ state, compact = false }: FocusTimerProps) {
         />
         <button
           type="button"
-          className={BUTTON_OUTLINE_ON_DARK}
+          className={BUTTON_OUTLINE}
           onClick={start}
           disabled={preset === undefined || neighborhoodId === ''}
         >
@@ -287,7 +287,7 @@ export function FocusTimer({ state, compact = false }: FocusTimerProps) {
         </button>
         <button
           type="button"
-          className={CHIP_ON_DARK_IDLE}
+          className={CHIP_IDLE}
           onClick={() => setIsComposing(true)}
           aria-label="Crear preset Pomodoro"
         >
@@ -300,17 +300,17 @@ export function FocusTimer({ state, compact = false }: FocusTimerProps) {
   if (isConfirming) {
     return (
       <div className="flex items-center gap-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-300">
+        <span className="text-label uppercase tracking-widest text-ink-muted">
           ¿Cortar? {elapsedMinutes} min · 80% al liquidar
         </span>
         <button
           type="button"
-          className={BUTTON_OUTLINE_ON_DARK}
+          className={BUTTON_OUTLINE}
           onClick={() => setIsConfirming(false)}
         >
           Seguir
         </button>
-        <button type="button" className={BUTTON_PRIMARY_ON_DARK} onClick={() => void interrupt()}>
+        <button type="button" className={BUTTON_PRIMARY} onClick={() => void interrupt()}>
           Cortar
         </button>
       </div>
@@ -319,10 +319,10 @@ export function FocusTimer({ state, compact = false }: FocusTimerProps) {
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
+      <span className="text-label uppercase tracking-widest text-ink-muted">
         {BLOCK_LABEL[block.kind]}
         {compact === false && preset !== undefined && (
-          <span className="ml-1 text-neutral-500">
+          <span className="ml-1 text-ink-muted">
             {preset.name}
             {isWorkBlock
               ? ` · B${workBlocksCompleted + 1}/${preset.cyclesBeforeLongBreak} · F ${state.dailyFocusMinutes} ${FOCUS_TIER_LABEL[getFocusTier(state.dailyFocusMinutes)]}`
@@ -330,15 +330,15 @@ export function FocusTimer({ state, compact = false }: FocusTimerProps) {
           </span>
         )}
       </span>
-      <span className="font-mono text-base font-bold leading-none text-pearl">
+      <span className="text-base leading-none text-ink tabular-nums">
         {clock}
-        <span className="ml-0.5 text-[10px] font-normal uppercase tracking-widest text-neutral-400">
+        <span className="ml-0.5 text-label uppercase tracking-widest text-ink-muted">
           /{block.minutes}
         </span>
       </span>
       <button
         type="button"
-        className={isWorkBlock ? BUTTON_OUTLINE_ON_DARK : BUTTON_PRIMARY_ON_DARK}
+        className={isWorkBlock ? BUTTON_OUTLINE : BUTTON_PRIMARY}
         onClick={() => (isWorkBlock ? setIsConfirming(true) : void interrupt())}
         disabled={isWorkBlock && canInterrupt === false}
       >

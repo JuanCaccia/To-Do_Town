@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useGameStore } from '../../state/useGameStore';
-import { BUTTON_DISMISS_ON_DARK, BUTTON_OUTLINE_ON_DARK } from './primitives';
+import { BUTTON_DISMISS, BUTTON_OUTLINE, ErrorNote } from './primitives';
 
 interface BackupControlsProps {
   /** La acción terminó bien: el menú colapsa y avisa. */
@@ -79,12 +79,12 @@ export function BackupControls({ onDone, onCancel }: BackupControlsProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <button type="button" className={BUTTON_OUTLINE_ON_DARK} onClick={() => void handleExport()}>
+      <button type="button" className={BUTTON_OUTLINE} onClick={() => void handleExport()}>
         Exportar
       </button>
       <button
         type="button"
-        className={BUTTON_OUTLINE_ON_DARK}
+        className={BUTTON_OUTLINE}
         onClick={() => fileInputRef.current?.click()}
       >
         Importar
@@ -99,7 +99,7 @@ export function BackupControls({ onDone, onCancel }: BackupControlsProps) {
       />
       <button
         type="button"
-        className={BUTTON_DISMISS_ON_DARK}
+        className={BUTTON_DISMISS}
         onClick={onCancel}
         aria-label="Cancelar el respaldo"
       >
@@ -107,12 +107,7 @@ export function BackupControls({ onDone, onCancel }: BackupControlsProps) {
       </button>
 
       {error !== null && (
-        <span
-          role="status"
-          className="max-w-[22rem] border border-red-800 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-red-400"
-        >
-          {error}
-        </span>
+        <ErrorNote className="max-w-[22rem]">{error}</ErrorNote>
       )}
     </div>
   );

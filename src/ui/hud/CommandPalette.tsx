@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import type { CommandDispatchRejection } from '../../state/useGameStore';
+import { ErrorNote, INPUT } from './primitives';
 
 const STATIC_REJECTION_TEXT = {
   EMPTY: 'Escribí un comando.',
@@ -42,9 +43,8 @@ const HINTS = [
 /**
  * Command Palette (US-12 CA-01): Ctrl+K abre el intérprete de comandos rápidos.
  *
- * Vive sobre el lienzo negro, no sobre una zona: el presupuesto de superficies
- * de `UI_DESIGN.md` §2 fija tres perlas y esta no es una de ellas. Por eso es
- * `bg-black` con hairline `border-neutral-800`.
+ * Vive sobre el lienzo negro, así que es un overlay de chrome (§7.2), no una
+ * zona perla: `data-surface="dark"` con hairline.
  *
  * El despacho es del store (`runCommand`); acá sólo se muestra el motivo cuando
  * el comando se rechaza.
@@ -100,14 +100,13 @@ export function CommandPalette({ state }: { state: GameState }) {
       aria-label="Command Palette"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
     >
-      <div className="w-full max-w-3xl rounded-none border border-neutral-800 bg-black">
-        <div className="flex items-center justify-between gap-3 border-b border-neutral-800 px-4 py-2.5">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-pearl">
-            Comandos
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
-            Ctrl+K
-          </span>
+      <div
+        data-surface="dark"
+        className="w-full max-w-3xl rounded-none border border-ink-muted bg-surface text-ink"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+          <span className="text-sm text-ink">Comandos</span>
+          <span className="text-label uppercase tracking-widest text-ink-muted">Ctrl+K</span>
         </div>
 
         <form
@@ -126,19 +125,12 @@ export function CommandPalette({ state }: { state: GameState }) {
             }}
             aria-label="Comando rápido"
             placeholder="t gym comprar suplemento !25"
-            className="w-full rounded-none border border-neutral-800 bg-black px-4 py-3 font-mono text-sm text-pearl transition-colors placeholder:text-neutral-500 focus:border-pearl focus:outline-none"
+            className={`${INPUT} w-full`}
           />
 
-          {message !== null && (
-            <p
-              role="alert"
-              className="mt-3 rounded-none border border-red-800 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-red-400"
-            >
-              {message}
-            </p>
-          )}
+          {message !== null && <ErrorNote className="mt-3">{message}</ErrorNote>}
 
-          <ul className="mt-3 space-y-1 font-mono text-[10px] uppercase tracking-widest text-neutral-400">
+          <ul className="mt-3 space-y-1 text-label uppercase tracking-widest text-ink-muted">
             {HINTS.map((hint) => (
               <li key={hint}>{hint}</li>
             ))}

@@ -26,19 +26,23 @@ export function HabitDistrict({ state, neighborhoodId }: HabitDistrictProps) {
 
   return (
     <div>
-      <nav className="flex gap-1 px-2 pt-2">
-        {(Object.keys(TAB_LABELS) as HabitTab[]).map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setTab(value)}
-            aria-current={tab === value ? 'true' : undefined}
-            className={`flex-1 ${TAB_ITEM} ${tab === value ? TAB_ITEM_ACTIVE : TAB_ITEM_IDLE}`}
-          >
-            {TAB_LABELS[value]}
-          </button>
-        ))}
-      </nav>
+      <div className="px-2 pt-2">
+        <div role="tablist" aria-label="Secciones de hábitos" className="flex gap-1">
+          {(Object.keys(TAB_LABELS) as HabitTab[]).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              data-surface={tab === value ? 'dark' : undefined}
+              onClick={() => setTab(value)}
+              className={`flex-1 ${TAB_ITEM} ${tab === value ? TAB_ITEM_ACTIVE : TAB_ITEM_IDLE}`}
+            >
+              {TAB_LABELS[value]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="pt-2">
         <Rule className="mx-4" />

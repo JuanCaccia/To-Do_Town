@@ -37,8 +37,8 @@ export function App() {
 
   if (state === null) {
     return (
-      <div className="flex h-full items-center justify-center bg-black font-mono text-xs uppercase tracking-widest text-neutral-400">
-        Cargando ciudad…
+      <div className="flex h-full items-center justify-center bg-surface text-label text-ink-muted">
+        Cargando ciudad<span className="motion-safe:animate-blink">_</span>
       </div>
     );
   }
@@ -53,7 +53,14 @@ export function App() {
       : (neighborhoodIds[0] ?? null);
 
   return (
-    <div className="flex h-full flex-col bg-black font-sans text-pearl">
+    <div className="flex h-full flex-col bg-surface text-ink">
+      {/* Saltar al inspector: the first focusable element (§4.4). */}
+      <a
+        href="#inspector"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:border focus:border-ink focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:text-ink"
+      >
+        Saltar al inspector
+      </a>
       {/* TopBar nunca se desmonta: el cronómetro vive dentro de ella y en Zen
           se renderiza en variante compacta, así que la sesión de foco sigue viva. */}
       <TopBar state={state} isZen={isZen} onExitZen={() => setIsZen(false)} />

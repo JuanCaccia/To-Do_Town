@@ -7,14 +7,17 @@ import type { DecorationKind, EntityId, GameState } from '../../core/types';
 import { useGameStore } from '../../state/useGameStore';
 import { HabitDistrict } from './HabitDistrict';
 import {
-  BADGE,
-  BUTTON_OUTLINE_ON_LIGHT,
-  BUTTON_PRIMARY_ON_LIGHT,
+  BUTTON_OUTLINE,
+  BUTTON_PRIMARY,
+  Chip,
+  ErrorNote,
+  Marker,
   Meter,
   PanelTitle,
   Rule,
   SectionLabel,
   StatCell,
+  Zone,
 } from './primitives';
 
 interface NeighborhoodInspectorProps {
@@ -91,43 +94,39 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
     /* One zone, one pearl block. Infrastructure, decorations and blocks are
        sections of the same window, split by inset hairlines — never by
        interleaved fills or extra ribbons. */
-    <section className="rounded-none bg-pearl text-black">
+    <Zone id="inspector" className="scroll-mt-4">
       <PanelTitle
-        emphasis
         meta={
           <span className="flex items-center gap-3">
             {/* UX-02: eficiencia y tasa del distrito, junto a su nivel. Vive
                 sólo acá —el inspector es la vista desplegada—; la sidebar se
                 queda con su fila escueta. */}
             <span className="flex items-baseline gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
-                Prod
-              </span>
-              <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-pearl">
+              <span className="text-label uppercase tracking-widest text-ink-muted">Prod</span>
+              <span className="text-label uppercase tracking-widest text-ink tabular-nums">
                 {Math.round(production.efficiency * 100)}%
               </span>
-              <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-pearl">
+              <span className="text-label uppercase tracking-widest text-ink tabular-nums">
                 {production.coinsPerHour.toFixed(2)} CR/h
               </span>
             </span>
-            <span className={BADGE}>NV.{neighborhood.infrastructureLevel}</span>
+            <span className={Chip}>NV.{neighborhood.infrastructureLevel}</span>
           </span>
         }
       >
+        <Marker tone="muted" />
         {neighborhood.name}
       </PanelTitle>
 
       <div className="p-5">
         <div className="flex items-end justify-between gap-4">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-            Urbanización
-          </span>
-          <span className="font-mono text-4xl font-bold leading-none text-black">
+          <span className="text-label uppercase tracking-widest text-ink-muted">Urbanización</span>
+          <span className="text-4xl leading-none text-ink tabular-nums">
             {Math.round(neighborhood.urbanizationProgress)}%
           </span>
         </div>
         <div className="mt-3">
-          <Meter value={neighborhood.urbanizationProgress} />
+          <Meter value={neighborhood.urbanizationProgress} label="Urbanización del barrio" />
         </div>
       </div>
 
@@ -148,22 +147,16 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
             type="button"
             disabled={pending || upgradeCost === null}
             onClick={() => void handleUpgrade()}
-            className={BUTTON_PRIMARY_ON_LIGHT}
+            className={BUTTON_PRIMARY}
           >
+            <Marker />
             {isMaxLevel
               ? 'Nivel Máximo'
               : `Subir a Nv.${neighborhood.infrastructureLevel + 1}${upgradeCost === null ? '' : ` · ${upgradeCost} CR`}`}
           </button>
         </div>
 
-        {message !== null && (
-          <p
-            className="mt-3 border border-red-800 bg-red-600/10 px-3 py-2 font-mono text-xs text-red-900"
-            role="alert"
-          >
-            {message}
-          </p>
-        )}
+        {message !== null && <ErrorNote className="mt-3">{message}</ErrorNote>}
       </div>
 
       <Rule />
@@ -188,7 +181,7 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
                 type="button"
                 disabled={pending || !affordable}
                 onClick={() => void handleBuyDecoration(kind)}
-                className={BUTTON_OUTLINE_ON_LIGHT}
+                className={BUTTON_OUTLINE}
               >
                 {DECORATION_LABELS[kind]} · {offer.cost} CR
               </button>
@@ -210,32 +203,26 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
             return (
               <li
                 key={`${block.gridPosition.x}:${block.gridPosition.y}`}
-                className="rounded-none border border-black/15 p-4"
+                className="rounded-none border border-line p-4"
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-                    Cuadra
-                  </span>
-                  <span className="font-mono text-xl font-bold leading-none text-black">
+                  <span className="text-label uppercase tracking-widest text-ink-muted">Cuadra</span>
+                  <span className="text-2xl leading-none text-ink tabular-nums">
                     {block.gridPosition.x}:{block.gridPosition.y}
                   </span>
                 </div>
 
                 <div className="mt-3 flex items-baseline justify-between gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-                    Casas
-                  </span>
-                  <span className="font-mono text-sm font-bold text-black">
+                  <span className="text-label uppercase tracking-widest text-ink-muted">Casas</span>
+                  <span className="text-sm text-ink tabular-nums">
                     {block.houses.length}
-                    <span className="font-normal text-neutral-600">/6</span>
+                    <span className="text-ink-muted">/6</span>
                   </span>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-600">
-                    Estado
-                  </span>
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-black">
+                  <span className="text-label uppercase tracking-widest text-ink-muted">Estado</span>
+                  <span className="text-label uppercase tracking-widest text-ink">
                     {block.isLeveled ? 'Nivelada' : 'Rústica'}
                   </span>
                 </div>
@@ -244,7 +231,7 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
                   type="button"
                   disabled={pending || cost === null}
                   onClick={() => void handleLevelBlock(block.gridPosition.x, block.gridPosition.y)}
-                  className={`${BUTTON_OUTLINE_ON_LIGHT} mt-4 w-full`}
+                  className={`${BUTTON_OUTLINE} mt-4 w-full`}
                 >
                   {block.isLeveled ? 'Nivelada' : `Nivelar${cost === null ? '' : ` · ${cost} CR`}`}
                 </button>
@@ -253,6 +240,6 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
           })}
         </ul>
       </div>
-    </section>
+    </Zone>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useGameStore } from '../../state/useGameStore';
-import { BUTTON_DISMISS_ON_DARK, BUTTON_OUTLINE_ON_DARK, INPUT_ON_DARK } from './primitives';
+import { BUTTON_DISMISS, BUTTON_OUTLINE, INPUT } from './primitives';
 
 interface CityPauseControlProps {
   /** La pausa se registró: el menú vuelve al `+`. */
@@ -36,7 +36,7 @@ export function CityPauseControl({ onDone, onCancel }: CityPauseControlProps) {
   return (
     <form className="flex items-center gap-1.5" onSubmit={(event) => void handleSubmit(event)}>
       <input
-        className={`${INPUT_ON_DARK} w-44`}
+        className={`${INPUT} w-44`}
         type="text"
         autoFocus
         maxLength={80}
@@ -45,12 +45,12 @@ export function CityPauseControl({ onDone, onCancel }: CityPauseControlProps) {
         value={reason}
         onChange={(event) => setReason(event.target.value)}
       />
-      <button type="submit" className={BUTTON_OUTLINE_ON_DARK} disabled={isReasonValid === false}>
+      <button type="submit" className={BUTTON_OUTLINE} disabled={isReasonValid === false}>
         Confirmar
       </button>
       <button
         type="button"
-        className={BUTTON_DISMISS_ON_DARK}
+        className={BUTTON_DISMISS}
         onClick={onCancel}
         aria-label="Cancelar la pausa"
       >
