@@ -149,6 +149,8 @@ Los componentes **no nombran** `neutral-*`, `red-*` ni ningún matiz: esos valor
 
 **Retícula de celdas.** Dentro de una zona, el contenido se organiza en columnas separadas por líneas verticales de 1px y filas separadas por líneas horizontales de 1px. Una celda no lleva caja propia: la alineación y las líneas hacen la tabla.
 
+**Contraste de la retícula.** La línea en contexto `light` es `#757575`: **3.1:1** contra la superficie `#d4d4d4`. No es decoración —es la estructura de la tabla—, así que cumple el 3:1 que §9 exige a los bordes que portan significado.
+
 **Divisores inset.** Los divisores *dentro* de una lista nunca llegan al borde de la zona: una línea de lado a lado corta la mancha en dos. La retícula de celdas, en cambio, ocupa el ancho útil del contenido de la zona.
 
 **Bisel de zona.** Cada `<Zone>` lleva dos líneas planas, no una sombra: una **línea superior clara** de 2px (`border-t-2 border-t-edge-hi`) y una **línea inferior oscura** de 6px (`border-b-6 border-b-edge-lo`). Es la única excepción a "sin relieve" y vive sólo en `<Zone>`.
@@ -210,7 +212,7 @@ Todos los valores de color y tipografía se declaran **una sola vez**, aquí. To
   --c-surface: #d4d4d4;
   --c-ink: #000000;
   --c-ink-muted: #525252;   /* 5.3:1 sobre perla */
-  --c-line: #9c9c9c;
+  --c-line: #757575;   /* 3.1:1 sobre perla — §9 pide 3:1 en bordes que portan significado */
   --c-fill: #000000;
   --c-on-fill: #ececec;
   --c-accent: #e11d2e;
