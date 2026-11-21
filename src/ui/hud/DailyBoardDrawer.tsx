@@ -143,10 +143,11 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
     <Zone
       as="aside"
       id="daily-board"
+      bevelTop={false}
       className="fixed right-0 top-0 z-30 flex h-full w-full max-w-sm flex-col"
     >
       <PanelTitle
-        className="min-h-14"
+        className="min-h-16"
         meta={
           <button
             type="button"

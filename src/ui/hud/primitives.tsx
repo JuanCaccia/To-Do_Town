@@ -18,6 +18,11 @@ interface ZoneProps {
   id?: string;
   /** Semantic element the zone is drawn on. */
   as?: 'section' | 'aside' | 'div';
+  /**
+   * The light top edge. A docked zone that starts at the viewport top (the
+   * Drawer) drops it so its black ribbon joins the navbar as one bar.
+   */
+  bevelTop?: boolean;
 }
 
 /**
@@ -25,12 +30,18 @@ interface ZoneProps {
  * the one exception to "no relief": a 2px light top edge and a 6px dark bottom
  * edge, both flat lines, never a shadow.
  */
-export function Zone({ as: Tag = 'section', className = '', id, children }: ZoneProps) {
+export function Zone({
+  as: Tag = 'section',
+  className = '',
+  id,
+  bevelTop = true,
+  children,
+}: ZoneProps) {
   return (
     <Tag
       id={id}
       data-surface="light"
-      className={`rounded-none border-t-2 border-t-edge-hi border-b-6 border-b-edge-lo bg-surface text-ink ${className}`}
+      className={`rounded-none ${bevelTop ? 'border-t-2 border-t-edge-hi' : ''} border-b-6 border-b-edge-lo bg-surface text-ink ${className}`}
     >
       {children}
     </Tag>
