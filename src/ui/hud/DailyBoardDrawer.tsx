@@ -132,7 +132,6 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
       >
         <Marker tone="accent" />
         Pizarra Diaria
-        <span className="text-label uppercase tracking-widest text-on-fill">[</span>
       </button>
     );
   }

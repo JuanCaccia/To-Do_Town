@@ -242,7 +242,7 @@ export const COMBO_LIST = 'absolute left-0 z-40 w-full min-w-max border border-i
 export const COMBO_LIST_DARK = 'bg-surface';
 export const COMBO_LIST_LIGHT = 'bg-surface';
 export const COMBO_OPTION =
-  'block w-full px-3 py-2 text-left text-sm transition-colors';
+  'block w-full px-3 py-2 text-left text-sm uppercase transition-colors';
 export const COMBO_OPTION_DARK_ACTIVE = 'bg-surface text-ink';
 export const COMBO_OPTION_DARK_IDLE = 'text-ink-muted hover:bg-fill hover:text-on-fill';
 export const COMBO_OPTION_LIGHT_ACTIVE = 'bg-surface text-ink';
