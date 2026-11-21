@@ -246,7 +246,10 @@ export const COMBO_OPTION =
 export const COMBO_OPTION_DARK_ACTIVE = 'bg-surface text-ink';
 export const COMBO_OPTION_DARK_IDLE = 'text-ink-muted hover:bg-fill hover:text-on-fill';
 export const COMBO_OPTION_LIGHT_ACTIVE = 'bg-surface text-ink';
-export const COMBO_OPTION_LIGHT_IDLE = 'text-ink hover:bg-black/5';
+// Light dropdowns invert the whole row on hover, exactly like the selected
+// option: `bg-fill` is black and `text-on-fill` is the light ink in this
+// context, so hovering and selecting share the same block.
+export const COMBO_OPTION_LIGHT_IDLE = 'text-ink hover:bg-fill hover:text-on-fill';
 
 /**
  * The disabled combo reads like a disabled input of the same panel. It is a
