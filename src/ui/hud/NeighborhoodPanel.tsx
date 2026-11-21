@@ -58,7 +58,7 @@ export function NeighborhoodPanel({ state, activeId, onSelect }: NeighborhoodPan
             return (
               <li
                 key={id}
-                className="relative after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-line last:after:hidden"
+                className={`relative after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-line last:after:hidden ${isActive ? 'after:hidden' : ''}`}
               >
                 {/* The selected row is the option inverted to the opposite
                     context, prefixed with `>` and labelled ACTIVO (§4.2). */}
@@ -128,7 +128,7 @@ export function NeighborhoodPanel({ state, activeId, onSelect }: NeighborhoodPan
             <button
               type="submit"
               disabled={name.trim().length === 0}
-              className={`${BUTTON_PRIMARY} mt-4 w-full`}
+              className={`${BUTTON_PRIMARY} mt-4`}
             >
               Crear
             </button>

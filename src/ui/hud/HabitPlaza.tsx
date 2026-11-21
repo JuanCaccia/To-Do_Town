@@ -171,7 +171,7 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
                   onClick={() => setMovingHabitId(habitId)}
                   className={BUTTON_OUTLINE}
                 >
-                  Mudar de Barrio
+                  Mudar de barrio
                 </button>
                 <button
                   type="button"
@@ -179,7 +179,7 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
                   onClick={() => void handleRetire(habitId)}
                   className={BUTTON_OUTLINE}
                 >
-                  Retirar al Museo
+                  Retirar al museo
                 </button>
               </div>
 
@@ -264,10 +264,10 @@ export function HabitPlaza({ state, neighborhoodId }: HabitPlazaProps) {
           <button
             type="submit"
             disabled={lotsFull || pending || title.trim().length === 0}
-            className={`${BUTTON_PRIMARY} w-full`}
+            className={BUTTON_PRIMARY}
           >
             <Marker />
-            Crear Hábito
+            Crear hábito
           </button>
         </form>
 

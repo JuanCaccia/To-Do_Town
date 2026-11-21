@@ -74,7 +74,7 @@ export function HabitMoveFlow({ state, habitId, habit, onDone }: HabitMoveFlowPr
               onClick={() => void handleConfirm()}
               className={BUTTON_PRIMARY}
             >
-              Confirmar Mudanza
+              Confirmar mudanza
             </button>
             <button
               type="button"

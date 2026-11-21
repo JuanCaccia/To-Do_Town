@@ -99,7 +99,7 @@ export function HabitCheckInList({ state }: { state: GameState }) {
                   className={BUTTON_PRIMARY}
                 >
                   <Marker tone={isDoneToday ? 'ink' : 'accent'} />
-                  {isDoneToday ? 'Cumplido Hoy' : 'Cumplir Hoy'}
+                  {isDoneToday ? 'Cumplido hoy' : 'Cumplir hoy'}
                 </button>
               </div>
             </li>

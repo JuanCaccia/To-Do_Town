@@ -133,7 +133,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
                 className={MENU_ITEM}
                 onClick={() => setPanel('seed-level')}
               >
-                Sembrar Nivel
+                Sembrar nivel
               </button>
             </>
           )}
@@ -145,7 +145,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
               className={MENU_ITEM}
               onClick={() => setPanel('pause')}
             >
-              Pausar Ciudad
+              Pausar ciudad
             </button>
           ) : (
             <button
@@ -154,7 +154,7 @@ export function NavActionsMenu({ state }: NavActionsMenuProps) {
               className={MENU_ITEM}
               onClick={() => void resumeCity().then(() => handleDone('Ciudad reanudada'))}
             >
-              Reanudar Ciudad
+              Reanudar ciudad
             </button>
           )}
         </div>

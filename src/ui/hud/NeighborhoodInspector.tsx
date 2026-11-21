@@ -26,9 +26,9 @@ interface NeighborhoodInspectorProps {
 }
 
 const DECORATION_LABELS: Record<DecorationKind, string> = {
-  SMALL_PLAZA: 'PLAZA PEQUEÑA',
-  FOUNTAIN_PARK: 'PARQUE C/ FUENTE',
-  CIVIC_MONUMENT: 'MONUMENTO CÍVICO',
+  SMALL_PLAZA: 'Plaza pequeña',
+  FOUNTAIN_PARK: 'Parque c/ fuente',
+  CIVIC_MONUMENT: 'Monumento cívico',
 };
 
 const REJECTION_TEXT = {
@@ -151,7 +151,7 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
           >
             <Marker />
             {isMaxLevel
-              ? 'Nivel Máximo'
+              ? 'Nivel máximo'
               : `Subir a Nv.${neighborhood.infrastructureLevel + 1}${upgradeCost === null ? '' : ` · ${upgradeCost} CR`}`}
           </button>
         </div>

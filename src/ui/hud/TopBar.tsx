@@ -138,7 +138,7 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
                   onClick={() => void registerWater(0.5)}
                   aria-label="Registrar medio litro de agua"
                 >
-                  +500 ml
+                  +0.5 L
                 </button>
                 <button
                   type="button"
@@ -146,7 +146,7 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
                   onClick={() => void registerWater(1)}
                   aria-label="Registrar un litro de agua"
                 >
-                  +1 l
+                  +1 L
                 </button>
               </div>
             }
@@ -185,7 +185,7 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
                   className={BUTTON_OUTLINE}
                   onClick={() => setIsReading(true)}
                 >
-                  Sumar págs
+                  Sumar páginas
                 </button>
               )
             }

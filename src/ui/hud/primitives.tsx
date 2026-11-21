@@ -220,7 +220,7 @@ export const CELL_ACTIVE = 'border-ink bg-surface text-ink';
 
 /** Toggle chip on the black chrome. Selection is carried by inversion. */
 export const CHIP_IDLE =
-  'inline-flex items-center rounded-none border border-ink-muted px-3 py-2 text-label uppercase tracking-widest text-ink-muted transition-colors hover:border-ink hover:text-ink';
+  'inline-flex items-center rounded-none border border-ink-muted px-3 py-2 text-sm text-ink-muted transition-colors hover:border-ink hover:text-ink';
 
 /**
  * Option inside a zone's tab strip. The selected one is inverted to the
