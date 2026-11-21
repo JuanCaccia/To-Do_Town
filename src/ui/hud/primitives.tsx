@@ -41,17 +41,18 @@ interface PanelTitleProps {
   children: ReactNode;
   /** Right-aligned slot for a badge, a counter or a control. */
   meta?: ReactNode;
+  className?: string;
 }
 
 /**
  * The black ribbon that crowns a zone. It is the window's chrome and appears
  * once per zone: sections inside never get a second ribbon (§2.1).
  */
-export function PanelTitle({ children, meta }: PanelTitleProps) {
+export function PanelTitle({ children, meta, className = '' }: PanelTitleProps) {
   return (
     <div
       data-surface="dark"
-      className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 text-ink"
+      className={`flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 text-ink ${className}`}
     >
       <h2 className="flex items-center gap-3 text-sm text-ink">{children}</h2>
       {meta !== undefined && <div className="flex items-center gap-2">{meta}</div>}

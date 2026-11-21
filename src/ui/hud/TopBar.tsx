@@ -110,8 +110,8 @@ export function TopBar({ state, isZen = false, onExitZen }: TopBarProps) {
     <header
       className={
         isZen
-          ? 'flex items-center justify-between border-b border-line bg-surface'
-          : 'flex flex-wrap items-stretch border-b border-line bg-surface'
+          ? 'flex min-h-14 items-center justify-between border-b border-line bg-surface'
+          : 'flex min-h-14 flex-wrap items-stretch border-b border-line bg-surface'
       }
     >
       {isZen === false && (

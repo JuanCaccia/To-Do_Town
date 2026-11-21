@@ -146,6 +146,7 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
       className="fixed right-0 top-0 z-30 flex h-full w-full max-w-sm flex-col"
     >
       <PanelTitle
+        className="min-h-14"
         meta={
           <button
             type="button"
@@ -232,10 +233,7 @@ export function DailyBoardDrawer({ state }: { state: GameState }) {
                 </div>
 
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-label uppercase tracking-widest text-ink-muted">
-                  <span className="inline-flex items-center gap-1">
-                    <Marker tone={stateInfo.tone} hollow={stateInfo.hollow} />
-                    {stateInfo.label}
-                  </span>
+                  <span>{stateInfo.label}</span>
                   <span>·</span>
                   <span>{neighborhood?.name ?? 'Barrio eliminado'}</span>
                   <span className="text-ink tabular-nums">
