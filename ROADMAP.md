@@ -60,18 +60,19 @@ El desarrollo se divide en **3 Etapas evolutivas**:
 
 * **Criterio de Salida (Gate 1.1 - Dogfooding Temprano y Sellado del Core):**
   * [x] Todas las User Stories de la Épica 1 en `BACKLOG.md` marcadas como `[DONE]`, `npm run typecheck` sin errores, `src/core` con cero imports externos y suite de **Vitest** al 100% en verde. *(Verificado 2026-11-19: US-00 a US-13 `[DONE]`, 436 tests en 53 archivos, `typecheck` limpio, `grep` de imports externos en `src/core` sin resultados. Las deudas registradas —DEV-01, MIG-01, UI-01, DOC-01, VAL-01, UX-02— están cerradas; UX-01 es una decisión permanente, no deuda.)*
-  * [ ] **Prueba de uso real de 7 días continuos** operando la aplicación mediante el HUD, calibrando cualquier constante económica en `ECONOMY.md` antes de construir el motor gráfico. *(No es verificable por el agente: depende de 7 días de calendario operando la ciudad real. Es el único criterio de Gate 1.1 todavía abierto.)*
+  * [x] **Prueba de uso real de 7 días continuos** operando la aplicación mediante el HUD, calibrando cualquier constante económica en `ECONOMY.md` antes de construir el motor gráfico. *(Cerrado por declaración del dueño del proyecto: uso real diario durante el desarrollo de la Épica 1. No surgió ninguna constante económica que recalibrar. El Hito 1.2 se autoriza en paralelo con `src/core` sellado — ver `GOVERNANCE.md` DEC-025.)*
 
 ---
 
 #### Hito 1.2: Motor Visual Isométrico 2:1 (`IsoCanvas` - Hi-Bit Diorama)
-> **Modo de Ejecución:** Se construye a través de las User Stories de la Épica 2 del `BACKLOG.md`, consumiendo el `src/core` ya sellado en el Hito 1.1.
+> **Modo de Ejecución:** Se construye a través de las User Stories de la Épica 2 del `BACKLOG.md` (**US-14 a US-21**), consumiendo el `src/core` ya sellado en el Hito 1.1. `src/core` es **sólo lectura** durante todo el hito (`GOVERNANCE.md` DEC-025): la capa visual deriva lo que necesita en `buildCityScene` y nunca extiende el dominio.
 
 * **Alcance:**
   * Construir `src/ui/city-canvas` sobre HTML5 `<canvas>` 2D con `image-rendering: pixelated` y proyección isométrica estricta 2:1 (`64x32px` por tile base).
   * Implementar cámara isométrica con *pan* fluido y *zoom* en múltiplos enteros (`1x`, `2x`, `3x`).
-  * Implementar arquitectura de **Spritesheets Indexados + `PaletteSwapper` en `OffscreenCanvas`** (bordes oscuros de `1px`, *highlights* de arista de `1px` y reemplazo dinámico del trío de color Luz/Base/Sombra por barrio) junto con **`ChunkManager` (Caché por cuadra y `dirty-flags`)**:
+  * Implementar **primitivas procedurales pixel-perfect** (`drawIsoTile`, `drawIsoBox`, `drawIsoRoof`, `drawIsoWindow`) con bordes oscuros de `1px` y *highlights* de arista de `1px`, y la **paleta del barrio inyectada por parámetro** (trío Luz/Base/Sombra) — sin spritesheets externos ni `PaletteSwapper` (**DEC-024**) — junto con **`ChunkManager` (Caché por cuadra y `dirty-flags`)**:
     * Núcleo Cívico (Ayuntamiento Nv.1-5, Gran Biblioteca Nv.1-5, Acueducto y Río isométrico Nv.1-5).
+    * **Escena fixture DEV-only** (`import.meta.env.DEV`) que siembra una ciudad sintética con todos los edificios en sus 5 niveles, para inspeccionar visualmente cada variante sin esperar 100 días de progresión real (mismo criterio que `DEV-01`).
     * Plaza de Infraestructura del barrio (4 lotes de edificios de hábitos Nv.1-5 + Museo) y Cuadras Residenciales de 6 casas (3 variantes de diseño) aplicando el color distintivo del barrio en tejados y detalles.
     * Diferenciación visual de cuadras rústicas (tierra) vs. niveladas (asfalto, bulevar con faroles nocturnos, distrito élite) y botón flotante `[🚧 Nivelar Cuadra]`.
     * Estructurar la carpeta `src/ui/city-canvas/themes/classic-diorama/` implementando el contrato `ArchitecturalThemePack`, garantizando que el mapa renderice cada barrio leyendo dinámicamente su `architecturalThemeId`.

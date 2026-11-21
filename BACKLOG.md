@@ -707,6 +707,369 @@ El sistema debe gestionar y depurar el historial de acciones reversibles pasados
 
 ---
 
+## ÉPICA 2 — Motor Visual Isométrico 2:1 (Hito 1.2)
+
+> **Regla de la épica — `src/core` sellado.** Toda US de esta épica **lee** el dominio y jamás lo extiende (`GOVERNANCE.md` DEC-025). Lo que el dominio no expone se **deriva** en la capa de escena; no se agrega un campo al tipo.
+>
+> **Regla de la épica — decisión vs. pintura.** Se testea con Vitest la **decisión** (proyección, orden de pintado, geometría de caras, hit-testing, invalidación de caché). La **pintura** (tonos, outlines, encendido de ventanas) se verifica a ojo en la Prueba de Usuario de su US. Cada CA declara a qué lado pertenece; ningún CA visual queda sin dueño de verificación.
+>
+> **Regla de la épica — renderizado procedural.** Sin spritesheets externos ni `PaletteSwapper` (`GOVERNANCE.md` DEC-024). El color entra por parámetro.
+>
+> **Regla de la épica — un solo builder.** `buildCityScene(state, now)` es el único punto que traduce `GameState` a escena. Ningún renderer, componente ni primitiva lee `GameState`.
+
+### US-14 (sistema): Escena Desacoplada, Cámara Isométrica y Loop de Frames `[IN PROGRESS]`
+
+Como sistema, necesito derivar una descripción pura y ordenada de la ciudad a partir del `GameState` y proyectarla a pantalla con una cámara, para que el lienzo sólo tenga que pintar y el motor se pueda testear sin un solo píxel.
+
+> **Punto de reanudación (2026-11-21).** El RED de CA-01 que llegó a escribirse **quedó descartado y borrado**: asumía coordenadas locales (`grid { 0, 0, 0 }`) y una escena plana, contrato que `CITY_VISUAL_SPEC.md` §4 reemplazó por slots de distrito. Se borró en vez de dejarlo en el árbol porque un test que fija un contrato muerto es una trampa, no un punto de partida. **Próximo paso: escribir el RED de CA-01 y CA-04 juntos** — dos barrios, cada uno con su primera cuadra en `{ x: 0, y: 0 }`, deben producir drawables en tiles de ciudad distintos. Ese es el test que ayer hubiera fallado y hoy define el hito.
+
+#### Criterios de Aceptación (Capa pura):
+
+**CA-01: Disposición Espacial de la Ciudad (`layoutCity`)**
+- Dado un `GameState` con N barrios,
+- Cuando el motor resuelve la disposición llamando `layoutCity(state)` sin tocar el DOM,
+- Entonces devuelve un `CityLayout` que asigna a cada `neighborhoodId` un slot de la tabla normativa de `CITY_VISUAL_SPEC.md` §4.4 con su origen en bloques, y ubica el corredor fluvial, la banda cívica y el borde; los distritos ocupan slots en **orden de creación** recorriendo el orden de ocupación `[2, 3, 0, 1, 4, 5]`, tomando cada uno el primer slot libre al final del recorrido, de modo que **agregar un distrito nunca mueve a los existentes**.
+
+**CA-02: Derivación de Drawables por Cuadra (`deriveDrawables`)**
+- Dado el `GameState` y su `CityLayout`,
+- Cuando el motor deriva los drawables,
+- Entonces emite exactamente un `Drawable` por cada `CityBlock` de cada barrio, con `grid` en **tiles de ciudad** (`(slotOrigin + block.gridPosition) * BLOCK_CELL`), `gz: 0`, `primitive: 'block-rustic'` si `isLeveled === false` o `'block-leveled'` si es `true`, y el `paletteId` / `neighborhoodId` del barrio dueño.
+
+**CA-03: Composición y Pureza (`buildCityScene`)**
+- Dado un `GameState` válido,
+- Cuando el renderer pide la escena,
+- Entonces `buildCityScene(state)` compone `layoutCity` + `deriveDrawables` + `sortDrawables`, devuelve `{ layout, drawables }` y **no muta** el estado recibido ni lee el DOM.
+
+**CA-04: Invariante de No-Solapamiento entre Distritos**
+- Dado un `GameState` con dos o más barrios, cada uno con su primera cuadra en `{ x: 0, y: 0 }` (el seed de `createNeighborhood`),
+- Cuando el motor deriva la escena,
+- Entonces **ningún par de `Drawable` comparte coordenada de grilla**: dos barrios distintos nunca caen en el mismo tile. Este CA es la razón de existir de `layoutCity`: `gridPosition` es local al barrio (US-03 CA-04), no de ciudad.
+
+**CA-05: Proyección de Grilla a Mundo Isométrico 2:1**
+- Dado un punto de grilla `{ gx, gy, gz }`,
+- Cuando el motor lo proyecta a coordenadas de mundo,
+- Entonces aplica `sx = (gx - gy) * TILE_W / 2` y `sy = (gx + gy) * TILE_H / 2 - gz * FLOOR_H` con `TILE_W = 64`, `TILE_H = 32` y `FLOOR_H = 20`, de modo que el origen `{0,0,0}` cae en `{0,0}`, `{1,0,0}` en `{32,16}`, `{0,1,0}` en `{-32,16}` y `{1,1,0}` en `{0,32}`.
+
+**CA-06: Orden de Pintado Determinista (Painter's Algorithm)**
+- Dado el array de `Drawable` de una escena,
+- Cuando el motor lo ordena para dibujar,
+- Entonces devuelve un **array nuevo** ordenado por `gx + gy` ascendente y luego por `gz` ascendente, desempatando por `gx` ascendente y luego por `gy` ascendente, sin mutar la entrada.
+
+**CA-07: Cámara con Pan y Zoom en Múltiplos Enteros**
+- Dado un punto de mundo y una cámara `{ x, y, zoom }` con `zoom: 1 | 2 | 3`,
+- Cuando el motor lo transforma a coordenadas de pantalla,
+- Entonces aplica `px = (wx - camera.x) * zoom` y `py = (wy - camera.y) * zoom`, de modo que el pan traslada sin escalar y el zoom multiplica distancias por un entero exacto. El tipo prohíbe el zoom fraccionario: no hay validación en runtime.
+
+**CA-08: Límites de Escena y Clamp de Cámara**
+- Dado el array de `Drawable` y un viewport,
+- Cuando el motor calcula los límites y clampea la cámara,
+- Entonces `getSceneBounds(drawables)` devuelve el AABB en tiles expandido por `BORDER_MARGIN_TILES = 2`, y `clampCamera(camera, bounds, viewport)` impide mostrar algo fuera de `bounds`; si `bounds` es menor que el viewport, centra y deshabilita el pan. El borde de nube se pinta en `bounds`, así que **la cámara no conoce el arte** (`CITY_VISUAL_SPEC.md` §8).
+
+**CA-09: Loop de Frames con Dirty-Flag (Cero Repintado en Reposo)**
+- Dado un scheduler de frames recién creado,
+- Cuando la escena no cambió desde el último pintado,
+- Entonces `needsPaint()` devuelve `false` y no se solicita ningún frame; `markDirty()` lo pone en `true`, `consumePaint()` lo devuelve a `false`, y dos `markDirty()` seguidos producen **un solo** pintado pendiente.
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **CA-01 → DEC-025:** el slot se deriva del orden de creación; **no** se agrega un `layoutSlot` al tipo. Si se quisiera control manual del slot, eso exige un DEC nuevo, no un campo silencioso.
+- **CA-01 → `CITY_VISUAL_SPEC.md` §4.4:** la tabla de slots es **dato normativo**, no un literal suelto dentro de la función. Vive en `src/ui/city-canvas/layout/districtSlots.ts` y se importa.
+- **CA-01 → desborde:** si las cuadras de un distrito exceden su huella de 6×6, `layoutCity` **lanza**. No reubica en silencio (mismo criterio que `freePosition`, US-03 CA-04).
+- **CA-02 → US-16/17/18:** la escena nace con un único `kind: 'block'`. Cada US siguiente agrega su `kind` y su primitiva al mismo builder. **Prohibido** que un renderer, un componente o una primitiva lea `GameState` para suplir lo que el builder todavía no emite.
+- **CA-02 → `now`:** el builder **no** recibe `now` todavía. La eficiencia de hábitos (US-17) lo necesitará para el encendido de ventanas; entra con esa US, no antes (YAGNI).
+- **CA-02 → `gz`:** las cuadras viven en `gz: 0`. El eje vertical queda declarado y usado por la proyección, pero sin productor hasta que exista un prop elevado.
+- **CA-05 → constantes:** `TILE_W`, `TILE_H` y `FLOOR_H` son de `ARCHITECTURE.md` §4.1; `BLOCK_CELL` y `BLOCK_STRIDE` son de `CITY_VISUAL_SPEC.md` §4.1. Todas viven en `src/ui/city-canvas/constants.ts`, nunca dentro de una función.
+- **CA-07 → zoom:** el tipo `1 | 2 | 3` reemplaza a una validación en runtime, mismo criterio que `House['lotIndex']`. Un `4x` futuro es un cambio de tipo con ripple visible, no un número suelto.
+- **CA-09 → alcance:** el scheduler no conoce React ni `requestAnimationFrame`. Es una máquina de estados pura; el enganche a `rAF` vive en el componente que monta el canvas (US-16).
+- **Fase 4 diferida:** esta US **no declara Pruebas de Usuario** porque todavía no pinta nada. Su validación visual es la de US-16, cuando exista la primera primitiva. Mismo precedente que US-03 (Fase 4 diferida a US-04) y US-07 (sin Pruebas propias).
+
+### US-15 (sistema): Primitivas Pixel-Perfect, Paleta Paramétrica y Theme Pack
+
+Como sistema, necesito un catálogo de primitivas isométricas y un registro de paletas por barrio, para que cada cuadra se dibuje con el trío de color de su distrito sin duplicar arte ni hardcodear geometría.
+
+#### Criterios de Aceptación:
+
+**CA-01: Registro de Paletas por Barrio (Trío Luz/Base/Sombra)**
+- Dado un `paletteId` de barrio,
+- Cuando el motor resuelve su paleta,
+- Entonces devuelve `{ light, base, shadow, outline }` con `outline: '#1A1C23'` fijo, desde el registro puro `src/ui/city-canvas/palettes.ts`; y si el `paletteId` no está registrado, lanza en vez de devolver una paleta inventada. `src/ui/hud/palettes.ts` deja de ser dueño de los ids y pasa a importar del registro del lienzo (`ARCHITECTURE.md` §3).
+
+**CA-02: Sombreado Plano por Cara (Regla 80/20)**
+- Dado el tono base de una superficie,
+- Cuando el motor deriva el tono de cada cara,
+- Entonces aplica Cara Superior 100%, Cara Izquierda 85% y Cara Derecha 65% sobre el hex base mediante aritmética entera determinista, sin degradados ni `gradient` en el canvas.
+
+**CA-03: Geometría de Bloque (`isoBoxFaces`)**
+- Dado un `grid { gx, gy, gz }`, un tamaño de huella y una altura de piso,
+- Cuando el motor calcula las caras de un bloque isométrico,
+- Entonces devuelve los tres polígonos (`top`, `left`, `right`) en coordenadas de pantalla, con la cara superior como rombo de `TILE_W` por `TILE_H`, las caras laterales de `FLOOR_H` de alto y aristas compartidas sin huecos entre caras.
+
+**CA-04: Contrato `ArchitecturalThemePack` y `ThemeRegistry`**
+- Dado un `architecturalThemeId` de barrio,
+- Cuando el renderer pide el pack del tema,
+- Entonces `ThemeRegistry` devuelve el `ArchitecturalThemePack` registrado (`CLASSIC_DIORAMA` es el único) y lanza si el id no existe; el pack expone el dibujo de cada primitiva y es el **único** lugar donde vive la geometría del tema (`ARCHITECTURE.md` §4.5).
+
+**CA-05: Primitivas de Pintura (`drawIsoTile`, `drawIsoBox`, `drawIsoRoof`, `drawIsoWindow`)**
+- Dado un contexto 2D con `imageSmoothingEnabled = false`,
+- Cuando el pack dibuja una primitiva,
+- Entonces rellena los polígonos que devuelve CA-03 con los tonos de CA-02, traza la silueta con 1px de `outline` y resalta las aristas expuestas con 1px claro. **Sin test unitario por diseño:** es la mitad de pintura; se verifica en la Prueba de Usuario.
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **CA-01 → CA-05:** la paleta entra **por argumento** a la primitiva. La primitiva nunca conoce el `neighborhoodId` ni consulta el registro: recibe colores (DEC-024).
+- **CA-01 → `TUTORIAL_DEFAULT`:** el barrio tutorial usa un `paletteId` que hoy no está en `HUD_PALETTES`. El registro del lienzo debe cubrirlo; no se cambia el seed del Día Cero (`src/core` sellado, DEC-025).
+- **CA-03 → CA-05:** la geometría es pura y testeable; el `ctx` sólo rellena. Si una primitiva calcula coordenadas adentro del `fill`, la geometría se volvió invisible para los tests.
+- **CA-04 → DEC-024:** el contrato no cambia respecto de lo que pedía el `PaletteSwapper`. Lo que se descarta es la implementación, no la interfaz.
+
+#### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
+
+**Prueba 1: Dos barrios, dos paletas, cero arte duplicado**
+- Acción: Con dos barrios de paletas distintas, comparar sus cuadras en el lienzo.
+- Resultado esperado: Ambas cuadras comparten geometría y difieren sólo en el trío de color. Ningún archivo de imagen nuevo aparece en el repo.
+
+### US-16 (usuario): Cuadras Residenciales y Montaje del Lienzo
+
+Como usuario, quiero ver mi ciudad isométrica de fondo con mis barrios y sus casas, para que el progreso deje de ser una tarjeta y se vuelva un lugar.
+
+#### Criterios de Aceptación:
+
+**CA-01: Terreno y Cuadra Rústica vs. Nivelada**
+- Dado un `Drawable` de cuadra,
+- Cuando el pack del tema la dibuja,
+- Entonces `isLeveled: false` se pinta como bandeja de tierra (tonos cálidos neutros, borde de obra) y `isLeveled: true` como asfalto nivelado con bulevar, usando la paleta del barrio sólo en detalles de identidad.
+
+**CA-02: Lotes 2×3 y Asignación de Casa por `lotIndex`**
+- Dado un `CityBlock` con `houses[]`,
+- Cuando el motor posiciona cada casa,
+- Entonces la ubica en la celda `2×3` derivada de `lotIndex` (`fila = floor(lotIndex / 3)`, `columna = lotIndex % 3`) y elige la variante visual por `designVariant` (1, 2 o 3); una casa es un `kind: 'house'` más en la escena, con su propio `grid`.
+
+**CA-03: Color de Identidad del Barrio (20%)**
+- Dado un barrio con paleta resuelta,
+- Cuando el pack dibuja sus casas,
+- Entonces aplica el trío del barrio en tejados y detalles, dejando muros y veredas en la paleta neutra cálida (regla 80/20 de `DOMAIN_DESIGN.md` §6.2).
+
+**CA-04: Montaje del Lienzo en el HUD**
+- Dado el `GameState` hidratado,
+- Cuando la aplicación monta el HUD,
+- Entonces el `<canvas>` ocupa el fondo completo con `image-rendering: pixelated`, pinta la escena ordenada por US-14 CA-03, permite pan por arrastre y zoom `1x/2x/3x` con la rueda, y **no repinta** cuando la escena no cambió (US-14 CA-05).
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **CA-02 → `lotIndex`:** el mapeo `2×3` es de presentación; el dominio no sabe de filas ni columnas. `ARCHITECTURE.md` §4 sólo fija la proyección.
+- **CA-04 → HUD:** el lienzo vive en `z-0` (`UI_DESIGN.md` §7). El HUD no se reescribe: se monta detrás.
+- **CA-04 → `src/core`:** la escena se deriva del estado que el store ya expone. No se agregan selectores ni campos (DEC-025).
+
+#### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
+
+**Prueba 1: La ciudad aparece de fondo**
+- Acción: Abrir la aplicación con un barrio de 1 cuadra y 3 casas.
+- Resultado esperado: Se ve la cuadra isométrica con las 3 casas en lotes 0, 1 y 2, en el color del barrio, detrás del HUD.
+
+**Prueba 2: Pan y zoom entero**
+- Acción: Arrastrar el lienzo y hacer zoom con la rueda.
+- Resultado esperado: La ciudad se desplaza y escala en `1x/2x/3x` sin intermedios; los bordes de 1px siguen nítidos, sin suavizado.
+
+**Prueba 3: Reposo sin CPU**
+- Acción: Dejar la escena quieta y mirar el uso de CPU del navegador.
+- Resultado esperado: No hay repintado continuo; el uso cae a ~0% hasta que una acción muta el estado.
+
+### US-17 (usuario): Plaza de Infraestructura, Museo y Ventanas por Eficiencia
+
+Como usuario, quiero ver mis hábitos como edificios que se apagan cuando los abandono y un museo con los retirados, para leer el estado de mis rutinas sin abrir un panel.
+
+#### Criterios de Aceptación:
+
+**CA-01: Edificios de Hábitos Nv.1-5 en los 4 Lotes Productivos**
+- Dado un barrio con hábitos no retirados,
+- Cuando el motor deriva su Plaza de Infraestructura,
+- Entonces emite un `kind: 'habit-building'` por hábito con su `checkpointLevel` (1 a 5) y lo ubica en uno de los 4 lotes productivos de la Plaza, con altura y detalle crecientes por nivel.
+
+**CA-02: Museo con los Hábitos Retirados**
+- Dado un barrio con hábitos en `status: 'RETIRED_TO_MUSEUM'`,
+- Cuando el motor deriva la escena,
+- Entonces emite el Museo con una placa por hábito retirado, y el hábito retirado **no** ocupa lote productivo ni emite edificio.
+
+**CA-03: Ventanas Encendidas por Eficiencia Derivada**
+- Dado un hábito activo,
+- Cuando el pack dibuja su edificio,
+- Entonces enciende las ventanas en amarillo cálido según su eficiencia derivada leída de `getHabitEfficiencyRatio` (100% todas, 66%/33% pisos parciales, 0% vidrio apagado), **sin reimplementar la curva** (DEC-005, DEC-025).
+
+**CA-04: La Escena Recibe `now`**
+- Dado que la eficiencia es derivada de `(lastCompletedAt, frequency, infrastructureLevel, now)`,
+- Cuando el builder deriva la escena,
+- Entonces `buildCityScene(state, now)` recibe el instante por parámetro —el borde lo provee, el builder no llama `Date.now()`— y dos llamadas con el mismo `(state, now)` producen la misma escena.
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **CA-03 → `operationalNow`:** la eficiencia se evalúa contra el **Día Operativo Activo** (`GOVERNANCE.md` §2.4), no contra el reloj de pared. El `now` que recibe el builder es el que ya usa el HUD para esa derivación; no se inventa uno nuevo.
+- **CA-04 → US-14 CA-01:** la firma del builder crece con un parámetro. Es el único cambio de contrato de esta US.
+- **CA-01 → `PRODUCTIVE_LOTS`:** el número de lotes se **importa** de `src/core/entities/habit.ts`, no se re-declara en la escena (precedente de US-06 Fase 4).
+
+#### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
+
+**Prueba 1: El edificio se apaga**
+- Acción: Dejar un hábito sin check-in hasta caer a 33% y luego a 0%.
+- Resultado esperado: Las ventanas se apagan por pisos hasta quedar en vidrio apagado, sin cambiar la altura del edificio.
+
+**Prueba 2: Retiro visible al Museo**
+- Acción: Retirar un hábito en Nivel 5 (con `Sembrar Nivel`).
+- Resultado esperado: Su edificio desaparece de la Plaza, el lote queda libre y la placa aparece en el Museo.
+
+### US-18 (sistema): Núcleo Cívico Isométrico
+
+Como sistema, necesito dibujar Ayuntamiento, Biblioteca y Acueducto con sus cinco niveles, para que el progreso global de la ciudad se lea en el mapa.
+
+#### Criterios de Aceptación:
+
+**CA-01: Ayuntamiento Nv.1-5**
+- Dado `globals.townHall.level`,
+- Cuando el pack lo dibuja,
+- Entonces la altura y la cantidad de pisos crecen con el nivel, y el edificio es el más alto del núcleo cívico en todos los niveles.
+
+**CA-02: Gran Biblioteca Nv.1-5**
+- Dado `globals.library.level`,
+- Cuando el pack la dibuja,
+- Entonces su silueta crece con el nivel (volumen y ventanales) y se distingue del Ayuntamiento por forma, no sólo por color.
+
+**CA-03: Acueducto y Río Nv.1-5**
+- Dado `globals.aqueduct.level`,
+- Cuando el pack los dibuja,
+- Entonces el nivel 1 es un tanque, 2 una torre de agua, 3 un acueducto con canal, 4 un río con puentes y 5 un lago con costanera, en ese orden de magnitud.
+
+**CA-04: Paleta del Agua por Litros del Día**
+- Dado `globals.aqueduct.dailyLiters`,
+- Cuando el pack dibuja agua y follaje,
+- Entonces aplica `0 L` ocre seco, `1 L` verde hoja y `2 L+` verde esmeralda con píxeles de flores del color del barrio. La variación es **por estado**, no por frame: no introduce animación continua (ver pendiente).
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **CA-04 → Gate 1.2 (decisión abierta, no silenciosa):** `DOMAIN_DESIGN.md` §6.3 describe *"píxeles blancos animados de espuma"*. Una animación por frame contradice el criterio de **0 FPS en reposo**. Se implementa **variación por estado** y, si se quiere espuma animada, entra como criterio aparte con su propia discusión sobre el gate — nunca por arrastre.
+- **CA-01/02/03 → `globals`:** los niveles ya existen en el tipo. No se agrega nada (DEC-025).
+
+#### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
+
+**Prueba 1: Subida de nivel visible**
+- Acción: Registrar 15 L de agua con `agua 1` repetido (o sembrar histórico) y observar el Acueducto.
+- Resultado esperado: El Acueducto pasa de tanque a torre de agua y el follaje cambia de ocre a verde.
+
+### US-19 (usuario): Interacción en el Lienzo
+
+Como usuario, quiero hacer clic sobre una cuadra o un barrio en el mapa y operar desde ahí, para no depender de la sidebar para llegar al Inspector.
+
+#### Criterios de Aceptación:
+
+**CA-01: Hit-Testing de Pantalla a Grilla**
+- Dado un punto de pantalla y la cámara,
+- Cuando el motor resuelve qué está debajo del cursor,
+- Entonces invierte la cámara y la proyección (`ARCHITECTURE.md` §4.1) con aritmética entera determinista y devuelve la coordenada de grilla, o `null` si cae fuera de toda cuadra.
+
+**CA-02: Selección de Cuadra y Apertura del Inspector Existente**
+- Dado un clic sobre una cuadra,
+- Cuando el motor resuelve el hit,
+- Entonces selecciona esa cuadra y abre el `NeighborhoodInspector` **existente** del barrio dueño; no se duplica el Inspector en el lienzo.
+
+**CA-03: Botón Flotante `[🚧 Nivelar Cuadra]`**
+- Dado un barrio con `infrastructureLevel >= 2` y una cuadra rústica seleccionada,
+- Cuando el lienzo la muestra,
+- Entonces dibuja el botón flotante sobre la cuadra y lo cablea a la acción de nivelación ya existente en el store, con el mismo rechazo por saldo insuficiente.
+
+**CA-04: Feedback de Hover y Selección**
+- Dado el puntero sobre una cuadra,
+- Cuando se mueve sobre el mapa,
+- Entonces la cuadra bajo el cursor se resalta con un contorno de 1px en `accent` y la seleccionada conserva el resaltado al soltar.
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **CA-02 → `NeighborhoodInspector`:** es una US de integración, no de rediseño. Si el Inspector necesita otra forma, es una US aparte (`UI_DESIGN.md`).
+- **CA-03 → `blockLeveling`:** la regla y el mensaje de rechazo ya existen (US-02 CA-03). El lienzo no reimplementa el costo.
+- **CA-01 → CA-04:** el hit-testing es puro y testeable; el resaltado es pintura.
+
+#### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
+
+**Prueba 1: Clic en cuadra abre el barrio correcto**
+- Acción: Con dos barrios en el mapa, hacer clic en una cuadra de cada uno.
+- Resultado esperado: El Inspector muestra el barrio dueño de la cuadra clicada, no el último abierto.
+
+**Prueba 2: Nivelar desde el mapa**
+- Acción: Seleccionar una cuadra rústica de un barrio Nv.2 con fondos y pulsar `[🚧 Nivelar Cuadra]`.
+- Resultado esperado: La cuadra pasa a nivelada en el lienzo y la tesorería descuenta el costo.
+
+### US-20 (sistema): Escena Fixture DEV y Modo Inspección de Niveles
+
+Como sistema, necesito una ciudad sintética que muestre todos los edificios en sus cinco niveles, para validar visualmente cada variante sin esperar meses de progresión real.
+
+#### Criterios de Aceptación:
+
+**CA-01: Generador de Escena Fixture (puro)**
+- Dado un `now` de referencia,
+- Cuando el motor construye la ciudad fixture,
+- Entonces devuelve un `GameState` sintético con un barrio por nivel de infraestructura (1 a 4), un Ayuntamiento por nivel (1 a 5), una Biblioteca por nivel, un Acueducto por nivel y hábitos en cada `checkpointLevel` (1 a 5) más al menos uno retirado al Museo; la función es pura y determinista, vive en `src/adapters/dev-tools/` y **entra con test**.
+
+**CA-02: Montaje Sólo en DEV**
+- Dado que la fixture siembra un estado que no es del usuario,
+- Cuando la aplicación corre en Producción,
+- Entonces el botón de inspección **no existe** en el bundle, verificado contra `import.meta.env.DEV` igual que `DEV-01` y US-12 CA-04; y en DEV reemplaza el estado **en memoria** sin persistirlo en `game_state` ni emitir eventos.
+
+**CA-03: Recorrido Visual de Niveles**
+- Dado el modo inspección activo,
+- Cuando el usuario cicla los niveles,
+- Entonces puede ver los 5 niveles de cada edificio cívico y de hábitos en una sola pasada, sin tocar IndexedDB.
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **CA-01 → `src/core`:** la fixture **construye** un `GameState` desde cero, no modifica el dominio ni agrega campos (DEC-025). Si un tipo cambia, `tsc` marca la fixture: es su función.
+- **CA-01 → DEV-01:** mismo criterio de aislamiento: `saveState` sin evento, o directamente memoria. La fixture **no** debe ensuciar la ciudad real.
+- **CA-01 → crecimiento:** la fixture arranca en US-16 (cuadras) y crece con US-17 y US-18. Es un entregable con su propio ciclo, no una nota al pie.
+
+#### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
+
+**Prueba 1: Los 5 niveles en una pantalla**
+- Acción: Abrir el modo inspección y recorrer los niveles.
+- Resultado esperado: Cada edificio se ve distinto en 1, 2, 3, 4 y 5, sin progresión real ni 100 días de espera.
+
+**Prueba 2: La fixture no ensucia la ciudad**
+- Acción: Activar la fixture, recargar la aplicación.
+- Resultado esperado: La ciudad real vuelve intacta; nada de la fixture quedó en `game_state`.
+
+### US-21 (sistema): `ChunkManager` y Cierre del Gate 1.2
+
+Como sistema, necesito cachear el dibujo por cuadra y repintar sólo lo que cambió, para sostener 60 FPS en interacción y 0 FPS en reposo.
+
+#### Criterios de Aceptación:
+
+**CA-01: Caché por Cuadra en `OffscreenCanvas`**
+- Dado un `Drawable` de cuadra con sus casas,
+- Cuando el `ChunkManager` lo dibuja por primera vez,
+- Entonces rasteriza la cuadra completa en un `OffscreenCanvas` propio y los frames siguientes la componen por `drawImage`, sin repetir primitivas.
+
+**CA-02: Dirty-Flags e Invalidación**
+- Dado un chunk cacheado,
+- Cuando el estado de esa cuadra cambia (casa nueva, nivelación, eficiencia de un hábito),
+- Entonces sólo ese chunk se marca sucio y se re-rasteriza; los demás se reutilizan. El criterio de invalidación es **por cuadra**, no global.
+
+**CA-03: Presupuesto de Frames del Gate 1.2**
+- Dado el lienzo montado con la ciudad real,
+- Cuando la cámara se mueve,
+- Entonces se sostienen 60 FPS durante pan y zoom; y cuando la escena está quieta, el loop no solicita frames y el uso de CPU/GPU cae a ~0%. Ambas mitades se miden antes de marcar el Gate 1.2 como cerrado.
+
+#### Pendientes heredados entre CA de esta US (no confundir con CA nuevos)
+
+- **CA-01 → US-14 CA-05:** el `ChunkManager` es una optimización **sobre** el scheduler, no un segundo loop. El dirty-flag de escena sigue siendo el dueño de "¿hay que pintar?".
+- **CA-02 → eficiencia:** la eficiencia es derivada y cambia con el reloj, así que un hábito puede encender/apagar ventanas sin que el usuario haga nada. Ese cambio **debe** invalidar el chunk; si no, el mapa miente (DEC-005).
+- **CA-03 → Gate 1.2:** este CA es el dueño único del criterio de salida. Sin medición, el gate no se cierra.
+
+#### Pruebas de Usuario (Validación E2E en el HUD - Fase 4 Slice UI):
+
+**Prueba 1: 60 FPS con la ciudad real**
+- Acción: Pan y zoom sobre una ciudad con varios barrios y casas.
+- Resultado esperado: Movimiento fluido, sin tirones, y bordes de 1px nítidos.
+
+**Prueba 2: 0% en reposo**
+- Acción: Dejar la ventana quieta 60 segundos.
+- Resultado esperado: Cero frames solicitados; el indicador de uso de CPU del navegador queda en ~0%.
+
+---
+
 ## Deuda Registrada (no son User Stories nuevas)
 
 ### DEV-01: Herramienta DEV de siembra de saldos y edición de estado
