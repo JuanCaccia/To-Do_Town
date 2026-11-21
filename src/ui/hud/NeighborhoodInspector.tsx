@@ -115,7 +115,7 @@ export function NeighborhoodInspector({ state, neighborhoodId }: NeighborhoodIns
         }
       >
         <Marker tone="muted" />
-        <span className="uppercase">{neighborhood.name}</span>
+        <span>{neighborhood.name}</span>
       </PanelTitle>
 
       <div className="p-5">

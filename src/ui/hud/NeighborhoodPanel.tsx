@@ -72,7 +72,7 @@ export function NeighborhoodPanel({ state, activeId, onSelect }: NeighborhoodPan
                   }`}
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 text-sm uppercase">
+                    <span className="flex items-center gap-2 text-sm">
                       {isActive && <span aria-hidden>&gt;</span>}
                       {neighborhood.name}
                     </span>
